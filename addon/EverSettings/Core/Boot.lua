@@ -22,6 +22,7 @@ local function OnAddonLoaded()
 	Migrate(ns.db)
 	Compat:Detect()
 	ns.Registry:Finalize()
+	ns.Backup:Migrate() -- scoped originals (v3); needs finalized definitions
 	if #ns.Registry.errors > 0 then
 		ns:Print("%d setting definition(s) failed validation and were disabled. See /es diag.", #ns.Registry.errors)
 	end

@@ -2,7 +2,7 @@
 
 Three levels are tracked separately: **code implemented**, **offline tested**, **in-game verified**.
 
-## Offline tests: 114 passed, 0 failed (2026-11-27)
+## Offline tests: 144 passed, 0 failed (2026-11-27)
 
 Command: `.\scripts\test.ps1 -v` (Python 3.12, lupa 2.x, Lua 5.1 runtime). Addon load time offline: about 11 ms.
 
@@ -10,6 +10,7 @@ What the harness checks:
 - **Strict widget mock.** Every widget method and script handler the addon uses must exist on that widget type in Forever's WidgetAPI dump (build 1.60.1.70938); anything else raises an error. The real `EverSettings.toc` load order is used.
 - **API surface.** Every `C_*` function referenced in the source, and every listed global, exists in Forever's GlobalAPI dump.
 - **Safety invariants.** No `SetCVar` during load, login or startup timers; no global leaks; profiles and browsing never write.
+- **Safety gate (#5).** `safety_spec.lua`: composite partial writes and rollback, exact raw undo of preset children, unreadable read-back, overlap preview, preset side effects not logged as external, child failure inside a batch, dependency warnings before writes, restricted/partial undo retry, external-change conflicts, pending edits kept by undo, two-character originals and backups, legacy migration, staging reconciliation (false/zero), throwing setters and callbacks, retained failed requests, no-op records, malformed imports.
 - **Behaviour.** Schema, values, apply pipeline (success, clamped, rejected, failed, restricted), composites, sync, history, undo/redo, discovery, profiles and import hardening, and UI flows (open/close, every page, numeric entry with Enter/Escape and invalid input, slider drag, toggle, dropdown, reset, restricted state, footer apply, virtualized browser).
 
 The mock cannot prove in-game behaviour: layout, fonts, taint, real CVar semantics and hardware-dependent options need in-game testing.

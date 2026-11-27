@@ -2,11 +2,11 @@
 local addonName, ns = ...
 
 ns.name = addonName
-ns.version = "0.2.1-alpha"
+ns.version = "0.3.0-alpha"
 ns.TARGET_INTERFACE = 16001
 
 -- Saved variable layout version. Bump and add a migration in Boot.lua when the layout changes.
-ns.DB_VERSION = 2
+ns.DB_VERSION = 3
 
 ns.DB_DEFAULTS = {
 	dbVersion = ns.DB_VERSION,
@@ -20,7 +20,9 @@ ns.DB_DEFAULTS = {
 	activeProfile = nil,
 	snapshots = {},          -- initial snapshot (machine/account scoped CVars)
 	characterSnapshots = {}, -- [charKey] = initial snapshot of character scoped CVars
-	originals = {},          -- [settingId] = { value = canonical, time = t } before EverSettings first changed it
+	originals = {},          -- legacy (0.1/0.2): migrated into originalsScoped by Backup:Migrate
+	originalsScoped = {},    -- [scopeKey][settingId] = { value, raw, time, build, provider, scope, owner }
+	originalsLegacy = {},    -- legacy character-scoped originals that cannot be attributed to a character
 	backups = {},            -- list of { name, time, reason, values = { [id] = serialized } }
 	history = {},            -- list of change records, newest last
 	discovery = {},          -- results of the last runtime discovery, keyed by build

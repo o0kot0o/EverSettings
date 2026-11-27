@@ -43,10 +43,19 @@ function CVar:GetDefault(def)
 	return ns.Values.FromRaw(def, raw)
 end
 
-function CVar:Set(def, value)
+function CVar:Plan(def, value)
 	local raw = ns.Values.ToRaw(def, value)
-	if raw == nil then return false, "value cannot be stored" end
-	return Compat.SetCVar(def.cvar, raw)
+	if raw == nil then return nil, "value cannot be stored" end
+	return { { def.cvar, raw } }
+end
+
+-- Returns ok, message, planResult (see Providers:ExecutePlan).
+function CVar:Set(def, value)
+	local plan, err = self:Plan(def, value)
+	if not plan then return false, err end
+	local result = ns.Providers:ExecutePlan(plan)
+	if result.preflightError then return false, result.preflightError, result end
+	return result.allOk, ns.Providers.DescribePlan(result), result
 end
 
 function CVar:GetRaw(def)

@@ -204,10 +204,15 @@ function UI.CreateProfilesPage(parent, window)
 
 	local function ValuesSource(item)
 		if item.kind == "profile" then return Profiles:Get(item.name) end
-		if item.kind == "backup" then return Backup:List()[item.index] end
+		if item.kind == "backup" then
+			local b = Backup:List()[item.index]
+			if not b then return nil end
+			local _, skipped = Backup:RestorableValues(b)
+			return { name = b.name, time = b.time, build = b.build, values = Backup:CanonicalValues(b), raw = b, skipped = skipped }
+		end
 		if item.kind == "originals" then
 			local values = {}
-			for id, o in pairs(ns.db.originals) do values[id] = o.value end
+			for id, o in pairs(Backup:CurrentOriginals()) do values[id] = o.value end
 			return { name = "Original values", values = values }
 		end
 	end
@@ -232,16 +237,24 @@ function UI.CreateProfilesPage(parent, window)
 		detail.diffs:SetItems(DiffItems(cmp))
 		detail.stage:SetEnabled(#cmp.diffs > 0)
 		detail.stage:SetScript("OnClick", function()
-			local staged
+			local staged, rep
 			if item.kind == "profile" then
-				staged = Profiles:StageApply(source, filter)
+				staged, rep = Profiles:StageApply(source, filter)
 			else
-				-- Backups and originals: stage only differences in the selected categories.
+				-- Backups and originals: stage only differences in the selected categories,
+				-- with exact raw snapshots where available.
 				local ids = {}
 				for _, d in ipairs(cmp.diffs) do ids[d.def.id] = true end
-				staged = item.kind == "backup" and Backup:StageRestore(source, ids) or Backup:StageOriginals(ids)
+				if item.kind == "backup" then
+					staged, rep = Backup:StageRestore(source.raw, ids)
+				else
+					staged, rep = Backup:StageOriginals(ids)
+				end
 			end
-			window:SetStatus(("%d change(s) staged. Review them, then press Apply."):format(staged or 0), "accent")
+			local msg = ("%d change(s) staged. Review them, then press Apply."):format(staged or 0)
+			if rep and rep.replaced > 0 then msg = msg .. (" %d pending edit(s) replaced."):format(rep.replaced) end
+			if rep and rep.skipped and #rep.skipped > 0 then msg = msg .. (" %d skipped (%s)."):format(#rep.skipped, rep.skipped[1].reason) end
+			window:SetStatus(msg, (rep and rep.replaced > 0) and "warning" or "accent")
 			page:RefreshDetail()
 		end)
 
@@ -284,7 +297,8 @@ function UI.CreateProfilesPage(parent, window)
 				end },
 			})
 		elseif item.kind == "backup" then
-			detail.meta:SetText(("Taken %s  ·  %d values  ·  build %s"):format(Util.FormatTime(source.time), Util.Count(source.values), tostring(source.build or "?")))
+			local skippedText = (source.skipped and #source.skipped > 0) and ("  ·  %d not for this character"):format(#source.skipped) or ""
+			detail.meta:SetText(("Taken %s  ·  %d values  ·  build %s%s"):format(Util.FormatTime(source.time), Util.Count(source.values), tostring(source.build or "?"), skippedText))
 			detail.stage:SetText("Stage restore")
 			local index = item.index
 			SetButtons({
@@ -326,7 +340,7 @@ function UI.CreateProfilesPage(parent, window)
 				meta = Util.FormatTime(b.time):sub(6) }
 		end
 		items[#items + 1] = { type = "group", label = "SAFETY" }
-		items[#items + 1] = { type = "item", kind = "originals", key = "originals", label = "Original values", meta = tostring(Util.Count(ns.db.originals)) }
+		items[#items + 1] = { type = "item", kind = "originals", key = "originals", label = "Original values", meta = tostring(Util.Count(Backup:CurrentOriginals())) }
 		nav:SetItems(items, true)
 		if self.selected and self.selected.kind == "profile" and not Profiles:Get(self.selected.name) then self.selected = nil end
 		self:RefreshDetail()

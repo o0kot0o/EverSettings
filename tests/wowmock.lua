@@ -298,7 +298,7 @@ GetCursorPosition = function() return 0, 0 end
 -- Game info ---------------------------------------------------------------------------
 GetBuildInfo = function() return "1.60.1", "71139", "Nov 25 2026", 16001 end
 GetLocale = function() return "enUS" end
-UnitName = function() return "Tester" end
+UnitName = function() return MOCK.charName or "Tester" end
 GetRealmName = function() return "TestRealm" end
 InCombatLockdown = function() return MOCK.combat end
 IsMacClient = function() return false end

@@ -1,6 +1,6 @@
 # Claude status
 
-_Last updated: 2026-11-27, 0.2.1-alpha, confirmed in game._
+_Last updated: 2026-11-27, 0.3.0-alpha (issue #5 safety gate)._
 
 ## Current milestone
 
@@ -33,6 +33,7 @@ _Last updated: 2026-11-27, 0.2.1-alpha, confirmed in game._
 
 ## Recent changes
 
+- **0.3.0 safety gate (#5):** all six must-fix findings and the import suggestions addressed (raw write plans with rollback, exact raw journal for undo/restore, overlap preview and side-effect sync, retry-safe undo/redo, scoped originals/backups, staging reconciliation, protected apply). 30 regression tests; see [CHANGELOG.md](../CHANGELOG.md) and decisions D15–D19 in [ARCHITECTURE.md](ARCHITECTURE.md#decision-log). Offline tested only.
 - **First in-game verified setting:** Max Camera Distance (2.6 accepted, visibly farther zoom than 2.0, written through EverSettings). Gamma write verified. Persistence untested.
 - **0.2.1:** fixed "Current —" for false values, Preferences text overlap, sidebar/Manage truncation; Max Camera Distance extended range to 2.6 (observed in game); OUT OF RANGE badge.
 - **0.2 UI refinement (#4):** see [CHANGELOG.md](../CHANGELOG.md) and [UI_DESIGN.md](UI_DESIGN.md). Decisions D10–D14 are in [ARCHITECTURE.md](ARCHITECTURE.md#decision-log). The slider drag fix is preserved, and the layout code never hides, resizes or re-ranges a slider while it is dragged (regression-tested).
@@ -64,7 +65,7 @@ First result (2026-11-27, owner): **the addon loads, and `/es diag` and runtime 
 
 ## Offline test results
 
-114 passed, 0 failed (`.\scripts\test.ps1`). Details: [TEST_RESULTS.md](TEST_RESULTS.md).
+144 passed, 0 failed (`.\scripts\test.ps1`). Details: [TEST_RESULTS.md](TEST_RESULTS.md).
 
 ## Open GitHub issues
 
@@ -74,7 +75,7 @@ First result (2026-11-27, owner): **the addon loads, and `/es diag` and runtime 
 | [#2](https://github.com/o0kot0o/EverSettings/issues/2) | Research: can addons write secure CVars on Forever? | research |
 | [#3](https://github.com/o0kot0o/EverSettings/issues/3) | Research: documented ranges for hidden camera, nameplate and combat variables | research |
 | [#4](https://github.com/o0kot0o/EverSettings/issues/4) | Design review: visual polish and category icons | design |
-| [#5](https://github.com/o0kot0o/EverSettings/issues/5) | Code review: apply pipeline, sync and import safety | review. **No review comments have been posted on GitHub yet**; writable coverage stays unchanged until they arrive. |
+| [#5](https://github.com/o0kot0o/EverSettings/issues/5) | Code review: apply pipeline, sync and import safety | review. Findings addressed in 0.3.0 (offline tested); awaiting re-review before writable coverage grows |
 
 ## Questions requiring further research
 
@@ -88,7 +89,7 @@ See [SETTINGS_RESEARCH.md: Open research questions](SETTINGS_RESEARCH.md#open-re
 ## Recommended next steps
 
 1. Owner checks 0.2 in game and provides screenshots (main window, Details open, Preferences, a narrow window).
-2. Post ChatGPT's safety review on #5 so it can be addressed before writable coverage grows.
+2. ChatGPT re-reviews the 0.3.0 safety changes on #5; then Blizzard settings coverage expands (Audio, Controls, Interface, Combat, Targeting, Nameplates), accounting for all 418 settings-window CVars.
 3. Owner continues the in-game test plan (#1) and reports errors (BugSack output).
 4. Fix in-game issues and record verification evidence in the definitions.
 5. Milestone C database expansion, starting with Nameplates and Combat (spell queue, combat text), which players ask for most.

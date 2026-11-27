@@ -1,11 +1,18 @@
--- Change history (persistent) and undo/redo (session only).
+-- Change history (persistent, canonical values) and undo/redo (session only, exact raw
+-- journal entries).
+--
+-- An operation is the journal of one apply: every setting that actually changed, with raw
+-- snapshots of all its CVars before and after (issue #5, finding 3). Undo restores the raw
+-- "before" snapshots exactly; redo restores the state undo replaced. Entries that cannot be
+-- restored right now (combat, failures) stay on the stack for retry; entries whose CVars were
+-- changed outside EverSettings in the meantime are reported and not overwritten.
 local _, ns = ...
 
 local Util = ns.Util
 local History = { undoStack = {}, redoStack = {} }
 ns.History = History
 
--- record = { time, id, old, new, result, source }   source: "apply" | "undo" | "redo" | "external" | "profile" | "restore"
+-- record = { time, id, old, new, result, source }   source: "apply" | "undo" | "redo" | "external"
 function History:Add(record)
 	local list = ns.db.history
 	record.time = record.time or Util.Now()
@@ -38,43 +45,29 @@ function History:GetRecentIds(limit)
 	return out
 end
 
--- An operation is the set of successful changes from one apply: { { id, old, new }, ... }
-function History:PushOperation(op, source)
-	if #op == 0 then return end
-	if source == "undo" then
-		self.redoStack[#self.redoStack + 1] = op
-	else
-		self.undoStack[#self.undoStack + 1] = op
-		if source ~= "redo" then
-			self.redoStack = {}
-		end
-	end
+-- Called by Changes:ApplyList with the journal of an apply.
+function History:PushOperation(journal, source)
+	if #journal == 0 then return end
+	self.undoStack[#self.undoStack + 1] = journal
+	self.redoStack = {}
 end
 
 function History:CanUndo() return #self.undoStack > 0 end
 function History:CanRedo() return #self.redoStack > 0 end
 
-local function apply(op, useOld, source)
-	local changes = {}
-	for _, c in ipairs(op) do
-		local def = ns.Registry:Get(c.id)
-		-- Explicit branch: `useOld and c.old or c.new` breaks when the old value is false.
-		local value
-		if useOld then value = c.old else value = c.new end
-		if def and value ~= nil then changes[#changes + 1] = { def = def, value = value } end
-	end
-	return ns.Changes:ApplyList(changes, source)
+local function step(from, to, source)
+	local op = table.remove(from)
+	if not op then return nil end
+	local report = ns.Changes:RestoreEntries(op, source)
+	if #report.retained > 0 then from[#from + 1] = report.retained end
+	if #report.journal > 0 then to[#to + 1] = report.journal end
+	return report
 end
 
 function History:Undo()
-	local op = table.remove(self.undoStack)
-	if not op then return nil end
-	return apply(op, true, "undo")
+	return step(self.undoStack, self.redoStack, "undo")
 end
 
--- The redo stack holds the operations produced by undo, so redoing means reverting them.
 function History:Redo()
-	local op = table.remove(self.redoStack)
-	if not op then return nil end
-	return apply(op, true, "redo")
+	return step(self.redoStack, self.undoStack, "redo")
 end

@@ -329,18 +329,27 @@ function Window:CreateFooter(f)
 		local cat = ns.Categories.byId[catId]
 		UI.Confirm(L.RESET_CATEGORY, ("Stage factory defaults for every editable setting in %s? You can review the changes before applying them."):format(cat.name),
 			"Stage defaults", function()
-				local n = Changes:StageCategoryDefaults(catId)
-				Window:SetStatus(("%d default value(s) staged."):format(n), "accent")
+				local n, rep = Changes:StageCategoryDefaults(catId)
+				local msg = ("%d default value(s) staged."):format(n)
+				if rep.cleared > 0 then msg = msg .. (" %d pending edit(s) cleared (already at default)."):format(rep.cleared) end
+				if rep.replaced > 0 then msg = msg .. (" %d pending edit(s) replaced."):format(rep.replaced) end
+				if rep.restricted > 0 then msg = msg .. (" %d skipped (restricted)."):format(rep.restricted) end
+				Window:SetStatus(msg, (rep.replaced > 0 or rep.restricted > 0) and "warning" or "accent")
 			end)
 	end)
-	f.undo:SetScript("OnClick", function()
-		local report = ns.History:Undo()
-		if report then Window:SetStatus("Undo: " .. Changes:FormatReport(report), "accent") end
-	end)
-	f.redo:SetScript("OnClick", function()
-		local report = ns.History:Redo()
-		if report then Window:SetStatus("Redo: " .. Changes:FormatReport(report), "accent") end
-	end)
+	local function reportRestore(label, report)
+		if not report then return end
+		local warn = (report.counts.conflict or 0) > 0 or #report.retained > 0
+		Window:SetStatus(label .. ": " .. Changes:FormatReport(report), warn and "warning" or "accent")
+		for _, r in ipairs(report.results) do
+			if r.status == "conflict" or r.status == "failed" or r.status == "restricted" then
+				ns:Print("%s %s: %s%s", label, r.name, r.status, r.message and (" - " .. r.message) or "")
+			end
+			if r.pendingKept then ns:Print("%s: your pending edit was kept.", r.name) end
+		end
+	end
+	f.undo:SetScript("OnClick", function() reportRestore("Undo", ns.History:Undo()) end)
+	f.redo:SetScript("OnClick", function() reportRestore("Redo", ns.History:Redo()) end)
 end
 
 -- Layout ----------------------------------------------------------------------------------
@@ -552,16 +561,36 @@ function Window:Apply()
 		local report = Changes:ApplyAll()
 		local text = Changes:FormatReport(report)
 		local bad = report.counts.failed + report.counts.rejected + report.counts.clamped + report.counts.restricted
+			+ report.counts.partial + report.counts.unknown
 		self:SetStatus(text, bad > 0 and "warning" or "success")
 		for _, r in ipairs(report.results) do
 			if r.status ~= "success" then
 				ns:Print("%s: %s%s", r.name, r.status, r.message and (" - " .. r.message) or "")
 			end
 			for _, w in ipairs(r.warnings or {}) do ns:Print("%s: note - %s", r.name, w) end
+			if r.note then ns:Print("%s: %s", r.name, r.note) end
 		end
 	end
-	if n >= 10 or needsRestart then
+	-- Preview overlapping writes (e.g. the graphics preset and an explicit quality setting).
+	local preview = Changes:PreviewPending()
+	local overlapText
+	if #preview.overlaps > 0 then
+		local lines, seen = {}, {}
+		for _, o in ipairs(preview.overlaps) do
+			local key = table.concat(o.ids, ",")
+			if not seen[key] then
+				seen[key] = true
+				local names = {}
+				for _, id in ipairs(o.ids) do names[#names + 1] = Registry:Get(id).name end
+				lines[#lines + 1] = ("%s write the same variable(s); %s is applied last and wins."):format(table.concat(names, " and "), Registry:Get(o.winner).name)
+			end
+		end
+		overlapText = table.concat(lines, "\n")
+	end
+	Window.lastPreview = preview
+	if n >= 10 or needsRestart or overlapText then
 		local body = ("Apply %d change(s)?"):format(n)
+		if overlapText then body = body .. "\n\n" .. overlapText end
 		if needsRestart then body = body .. "\n\nSome of these only take effect after a /reload or a full game restart." end
 		UI.Confirm("Apply changes", body, L.APPLY, run)
 	else

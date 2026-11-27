@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0-alpha (safety gate, issue #5)
+
+Addresses the six must-fix findings and the import suggestions from ChatGPT's safety review.
+
+- Raw write plans: every write is an ordered list of exact CVar assignments. The whole set is checked before anything is written, each CVar is verified by reading it back, and a multi-CVar write that only partly succeeds is rolled back with a per-CVar recovery report. New result states: **partial** and **unknown** (value could not be read back).
+- Exact recovery: every mutation is journalled with raw before/after snapshots of all affected CVars, including unsuccessful items. Undo, redo, backups and originals restore exact raw values (a graphics preset's custom child values included) instead of recomputing them.
+- Batches: overlapping write sets are previewed before applying (the last writer wins, shown in the confirmation). The final batch state is verified, and preset side effects on other rows are recorded as EverSettings' own, not as external changes. Dependency warnings use the effective values before any write.
+- Undo/redo: entries that cannot be restored (combat, failures) stay on the stack for retry; entries changed outside EverSettings since are reported and not overwritten; pending edits are never cleared by undo/redo.
+- Scope: originals and backups record scope, owning character, build and provider. Character-scoped values are only restored on their own character. Legacy unscoped originals are migrated without guessing a character.
+- Staging reconciliation: category reset, profiles, backups and originals clear pending edits that already match the live value, and report replaced pending edits.
+- Apply cleanup: every item runs protected and the sync guard is always released; failed, rejected, partial, unknown and restricted requests stay pending; no history or undo entry is recorded when nothing changed.
+- Profiles are backed up with the live values at apply time, not at staging time.
+- Import hardening: a size cap before processing, an entry limit, rejection of duplicate keys and metadata, malformed escapes, bad checksum lengths and non-finite numbers.
+- 30 new safety tests (144 total); 26 of them fail against the 0.2.1 code.
+
+
 ## 0.2.1-alpha (fixes from the 0.2 in-game screenshots)
 
 - Fixed: Details showed "Current —" and rows hid the modified dot for settings whose value is Off/false (a Lua `and/or` trap).

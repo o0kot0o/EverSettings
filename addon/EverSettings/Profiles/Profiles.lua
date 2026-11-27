@@ -142,16 +142,24 @@ function Profiles:GetCategories(profile)
 	return cats
 end
 
--- Back up current values, then stage the profile's differences. Returns staged count, backup.
+-- Stage the profile's differences (reconciled with pending edits). The live values are
+-- backed up when the change is actually applied (Changes:ApplyList), not at staging time.
+-- Returns staged count and { staged, cleared, replaced }.
 function Profiles:StageApply(profile, categoryFilter)
-	local cmp = self:Compare(profile, categoryFilter)
-	if #cmp.diffs == 0 then return 0 end
-	local backup = ns.Backup:Create(("Before profile '%s'"):format(profile.name or "?"), "profile")
-	for _, d in ipairs(cmp.diffs) do
-		ns.Changes.pending[d.def.id] = d.value
+	local report = { staged = 0, cleared = 0, replaced = 0 }
+	for _, id in ipairs(Util.SortedKeys(profile.values)) do
+		local def = ns.Registry:Get(id)
+		local value = profile.values[id]
+		if def and not def.disabled and def.control ~= "readonly" and (not categoryFilter or categoryFilter[def.category])
+			and Values.Validate(def, value) and Providers:IsAvailable(def) then
+			local outcome, replaced = ns.Changes:StageTarget(def, value, nil, "profile:" .. (profile.name or "?"))
+			if outcome == "staged" then report.staged = report.staged + 1 end
+			if outcome == "cleared" then report.cleared = report.cleared + 1 end
+			if replaced then report.replaced = report.replaced + 1 end
+		end
 	end
 	ns.Callbacks:Fire("PendingChanged")
-	return #cmp.diffs, backup
+	return report.staged, report
 end
 
 function Profiles:Export(name)

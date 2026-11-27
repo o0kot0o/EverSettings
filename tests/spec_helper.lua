@@ -16,8 +16,10 @@ function reset_state()
 	wipe(MOCK.setLog); wipe(MOCK.clamp); wipe(MOCK.reject); wipe(MOCK.readOnly); wipe(MOCK.locked)
 	MOCK.combat = false
 	MOCK.minimapFiltered = { [1024] = true }
-	wipe(ns.Changes.pending)
-	wipe(ns.db.history); wipe(ns.db.originals); wipe(ns.db.profiles); wipe(ns.db.backups); wipe(ns.db.favorites)
+	wipe(ns.Changes.pending); wipe(ns.Changes.pendingRaw); wipe(ns.Changes.pendingOrigin)
+	wipe(ns.db.history); wipe(ns.db.originals); wipe(ns.db.originalsScoped); wipe(ns.db.originalsLegacy)
+	wipe(ns.db.profiles); wipe(ns.db.backups); wipe(ns.db.favorites)
+	MOCK.charName = nil
 	ns.db.activeProfile = nil
 	ns.History.undoStack, ns.History.redoStack = {}, {}
 	ns.Sync:Prime()

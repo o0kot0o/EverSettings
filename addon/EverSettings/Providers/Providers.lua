@@ -65,10 +65,13 @@ function Providers:GetDefault(def)
 	return call(def, "GetDefault")
 end
 
+-- Returns ok, message, planResult (planResult for cvar/composite providers).
 function Providers:Set(def, value)
 	local restriction = self:GetRestriction(def)
 	if restriction then return false, restriction end
-	return call(def, "Set", value)
+	local p = self:For(def)
+	if not p or not p.Set then return false, "no provider '" .. tostring(def.provider) .. "'" end
+	return p:Set(def, value)
 end
 
 function Providers:GetRaw(def)
@@ -132,4 +135,191 @@ function Providers:GetOptions(def)
 		out[i] = o
 	end
 	return out
+end
+
+-- Raw write plans ------------------------------------------------------------------------
+-- Every write is expressed as a plan: an ordered list of { name, raw } CVar assignments.
+-- ExecutePlan checks the whole plan before writing anything, verifies each CVar by reading
+-- it back, and if a multi-CVar plan only partly succeeds it rolls back the CVars it changed
+-- (through the same supported SetCVar API) and reports every outcome.
+-- (Issue #5, finding 1.)
+
+local Compat = ns.Compat
+
+-- Compare raw CVar strings: numerically when both are numbers ("1" == "1.000000").
+function Providers.RawEqual(a, b)
+	if a == b then return true end
+	if a == nil or b == nil or a == false or b == false then return false end
+	local na, nb = tonumber(a), tonumber(b)
+	if na and nb then return math.abs(na - nb) <= 1e-6 * math.max(1, math.abs(na), math.abs(nb)) end
+	return tostring(a) == tostring(b)
+end
+local RawEqual = Providers.RawEqual
+
+-- CVars a definition can write.
+function Providers:WriteSet(def)
+	if def.provider == "cvar" then return { def.cvar } end
+	if def.provider == "composite" then return def.cvars end
+	return {}
+end
+
+-- Exact raw state of everything a definition can write. Missing CVars are recorded as false.
+-- API-backed settings have no raw CVars; their canonical value is kept under __api.
+function Providers:Snapshot(def)
+	local snap = {}
+	for _, name in ipairs(self:WriteSet(def)) do
+		local v = Compat.GetCVar(name)
+		if v == nil then snap[name] = false else snap[name] = v end
+	end
+	if def.provider == "api" then
+		local ok, v = pcall(self.Get, self, def)
+		if ok then snap.__api = v end
+	end
+	return snap
+end
+
+-- Names whose raw values differ between two snapshots.
+function Providers.SnapshotDiff(a, b)
+	local diff = {}
+	for name, v in pairs(a or {}) do
+		if not RawEqual(v, b and b[name]) then diff[#diff + 1] = name end
+	end
+	for name, v in pairs(b or {}) do
+		if a == nil or a[name] == nil then diff[#diff + 1] = name end
+	end
+	table.sort(diff)
+	return diff
+end
+
+local function preflight(entries)
+	for _, e in ipairs(entries) do
+		if Compat.GetCVar(e.name) == nil then
+			return ("'%s' does not exist in this client"):format(e.name)
+		end
+		local info = Compat.GetCVarInfo(e.name)
+		if info then
+			if info.readOnly then return ("'%s' is read-only"):format(e.name) end
+			if info.locked then return ("'%s' is locked by the client"):format(e.name) end
+			if info.secure and Compat.InCombat() then return ("'%s' is secure and cannot be changed in combat"):format(e.name) end
+		end
+	end
+end
+
+-- plan: list of { name, raw }. Returns a result table:
+--   entries   { name, raw, before, after, outcome }   outcome: success|clamped|rejected|failed|unknown
+--   allOk     every CVar holds exactly the requested raw value
+--   partial   a multi-CVar plan where at least one CVar failed, was rejected or is unreadable
+--   rollback  list of { name, outcome } for CVars restored after a partial failure
+--   preflightError  set when nothing was written because the plan cannot be applied
+function Providers:ExecutePlan(plan)
+	-- Collapse duplicate names (last assignment wins) while keeping order.
+	local entries, index = {}, {}
+	for _, p in ipairs(plan) do
+		local name, raw = p[1], p[2]
+		if index[name] then
+			entries[index[name]].raw = raw
+		else
+			entries[#entries + 1] = { name = name, raw = raw }
+			index[name] = #entries
+		end
+	end
+	local result = { entries = entries, allOk = true, partial = false, rollback = {} }
+	result.preflightError = preflight(entries)
+	if result.preflightError then
+		result.allOk = false
+		return result
+	end
+	for _, e in ipairs(entries) do e.before = Compat.GetCVar(e.name) end
+	local bad = false
+	for _, e in ipairs(entries) do
+		local ok, err = Compat.SetCVar(e.name, e.raw)
+		e.after = Compat.GetCVar(e.name)
+		if e.after == nil then
+			e.outcome = "unknown"
+		elseif RawEqual(e.after, e.raw) then
+			e.outcome = "success"
+		elseif ok == false then
+			e.outcome, e.error = "failed", err
+		elseif RawEqual(e.after, e.before) then
+			e.outcome = "rejected"
+		else
+			e.outcome = "clamped"
+		end
+		if e.outcome ~= "success" then result.allOk = false end
+		if e.outcome == "failed" or e.outcome == "rejected" or e.outcome == "unknown" then bad = true end
+	end
+	if bad and #entries > 1 then
+		result.partial = true
+		for i = #entries, 1, -1 do
+			local e = entries[i]
+			if e.before ~= nil and e.after ~= nil and not RawEqual(e.after, e.before) then
+				Compat.SetCVar(e.name, e.before)
+				local now = Compat.GetCVar(e.name)
+				local outcome = RawEqual(now, e.before) and "restored" or "not restored"
+				result.rollback[#result.rollback + 1] = { name = e.name, outcome = outcome, value = now }
+				e.after = now
+			end
+		end
+	end
+	return result
+end
+
+-- Human-readable per-CVar summary of a plan result.
+function Providers.DescribePlan(result)
+	if not result then return nil end
+	if result.preflightError then return "Not applied: " .. result.preflightError end
+	local parts = {}
+	for _, e in ipairs(result.entries) do
+		if e.outcome ~= "success" then
+			parts[#parts + 1] = ("%s %s (wanted %s, now %s)"):format(e.name, e.outcome, tostring(e.raw), tostring(e.after))
+		end
+	end
+	for _, r in ipairs(result.rollback) do
+		parts[#parts + 1] = ("%s %s"):format(r.name, r.outcome == "restored" and "rolled back" or "could NOT be rolled back")
+	end
+	return #parts > 0 and table.concat(parts, "; ") or nil
+end
+
+-- Restore a definition to an exact raw snapshot. expected (optional): the raw state we last
+-- left it in; CVars that changed since are reported as conflicts and not overwritten.
+-- Returns status ("success"|"conflict"|"failed"|"restricted"|"noop"), message, planResult.
+function Providers:RestoreSnapshot(def, snap, expected)
+	if def.provider == "api" then
+		if snap.__api == nil then return "noop" end
+		local restriction = self:GetRestriction(def)
+		if restriction then return "restricted", restriction end
+		if expected and expected.__api ~= nil then
+			local okGet, current = pcall(self.Get, self, def)
+			if okGet and not ns.Values.Equal(def, current, expected.__api) then
+				return "conflict", "changed outside EverSettings since"
+			end
+		end
+		local ok, setOk, err = pcall(self.Set, self, def, snap.__api)
+		if not ok or setOk == false then return "failed", tostring(err or setOk) end
+		local okGet, now = pcall(self.Get, self, def)
+		if okGet and ns.Values.Equal(def, now, snap.__api) then return "success" end
+		return "failed", "read-back differs"
+	end
+	local conflicts, plan = {}, {}
+	for name, raw in pairs(snap) do
+		if name ~= "__api" and raw ~= false then
+			local current = Compat.GetCVar(name)
+			if expected and expected[name] ~= nil and not RawEqual(current, expected[name]) then
+				conflicts[#conflicts + 1] = name
+			elseif not RawEqual(current, raw) then
+				plan[#plan + 1] = { name, raw }
+			end
+		end
+	end
+	if #conflicts > 0 then
+		table.sort(conflicts)
+		return "conflict", "changed outside EverSettings since: " .. table.concat(conflicts, ", ")
+	end
+	if #plan == 0 then return "noop" end
+	table.sort(plan, function(a, b) return a[1] < b[1] end)
+	if def.restrictions.combat and Compat.InCombat() then return "restricted", "Cannot be changed during combat." end
+	local result = self:ExecutePlan(plan)
+	if result.preflightError then return "restricted", result.preflightError, result end
+	if result.allOk then return "success", nil, result end
+	return "failed", Providers.DescribePlan(result), result
 end

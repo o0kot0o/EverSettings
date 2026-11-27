@@ -1,6 +1,10 @@
 -- Composite provider: one control that drives several console variables, mirroring the
 -- proxy settings in Blizzard's Forever settings definitions. Each handler documents the
 -- Blizzard code it reproduces.
+--
+-- Handlers never write directly. Plan(def, value) returns the complete intended write set
+-- ({ name, raw } list); the provider executes it with Providers:ExecutePlan, which checks
+-- the whole set first, verifies every CVar, and rolls back on partial failure (issue #5).
 local _, ns = ...
 
 local Compat, Util = ns.Compat, ns.Util
@@ -11,19 +15,10 @@ local function num(name)
 	return tonumber(Compat.GetCVar(name))
 end
 
-local function setAll(pairsList)
-	for _, p in ipairs(pairsList) do
-		local ok, err = Compat.SetCVar(p[1], p[2])
-		if ok == false then
-			return false, ("%s: %s"):format(p[1], tostring(err))
-		end
-	end
-	return true
-end
-
--- Graphics quality preset (Graphics.lua OnGCChanged): setting the preset level also sets
--- every advanced quality CVar to GetGraphicsCVarValueForQualityLevel(cvar, level, raid),
--- respecting each setting's minimum (particle density has a minimum of 1).
+-- Graphics quality preset (Graphics.lua OnGCChanged): the preset level plus every advanced
+-- quality CVar set to GetGraphicsCVarValueForQualityLevel(cvar, level, raid), respecting
+-- each setting's minimum (particle density has a minimum of 1) and only for features the
+-- system supports.
 Composite.handlers.graphicsPreset = {
 	IsAvailable = function(def)
 		if not Compat.caps.GraphicsQualityLevels then
@@ -33,11 +28,10 @@ Composite.handlers.graphicsPreset = {
 	end,
 	Get = function(def) return num(def.cvars[1]) end,
 	GetDefault = function(def) return tonumber(Compat.GetCVarDefault(def.cvars[1])) end,
-	Set = function(def, value)
-		local list = { { def.cvars[1], tostring(value) } }
+	Plan = function(def, value)
+		local plan = { { def.cvars[1], tostring(value) } }
 		for i = 2, #def.cvars do
 			local child = def.cvars[i]
-			-- Blizzard only cascades to children whose feature is supported on this system.
 			local supported = true
 			local cond = def.childCondition and def.childCondition[child]
 			if cond then
@@ -46,17 +40,15 @@ Composite.handlers.graphicsPreset = {
 			end
 			if supported and Compat.GetCVar(child) ~= nil then
 				local level = GetGraphicsCVarValueForQualityLevel(child, value, def.raid or false)
+				if type(level) ~= "number" then
+					return nil, ("no preset value for %s"):format(child)
+				end
 				local minimum = def.childMinimum and def.childMinimum[child]
 				if minimum and level < minimum then level = minimum end
-				list[#list + 1] = { child, tostring(level) }
+				plan[#plan + 1] = { child, tostring(level) }
 			end
 		end
-		return setAll(list)
-	end,
-	GetRaw = function(def)
-		local parts = {}
-		for _, name in ipairs(def.cvars) do parts[#parts + 1] = name .. "=" .. tostring(Compat.GetCVar(name)) end
-		return table.concat(parts, "\n")
+		return plan
 	end,
 }
 
@@ -65,11 +57,11 @@ Composite.handlers.graphicsPreset = {
 Composite.handlers.ratio = {
 	Get = function(def) return num(def.cvars[1]) end,
 	GetDefault = function(def) return def.defaultValue end,
-	Set = function(def, value)
-		return setAll({
+	Plan = function(def, value)
+		return {
 			{ def.cvars[1], Util.FormatNumber(value) },
 			{ def.cvars[2], Util.FormatNumber(value / def.ratio) },
-		})
+		}
 	end,
 }
 
@@ -87,8 +79,8 @@ Composite.handlers.boolMap = {
 		if d == def.onValue then return true elseif d == def.offValue then return false end
 		return def.defaultValue
 	end,
-	Set = function(def, value)
-		return setAll({ { def.cvars[1], tostring(value and def.onValue or def.offValue) } })
+	Plan = function(def, value)
+		return { { def.cvars[1], tostring(value and def.onValue or def.offValue) } }
 	end,
 }
 
@@ -107,10 +99,10 @@ Composite.handlers.shakeLevel = {
 		return "custom"
 	end,
 	GetDefault = function(def) return 1 end,
-	Set = function(def, value)
-		if type(value) ~= "number" then return false, "choose None, Reduced or Full" end
+	Plan = function(def, value)
+		if type(value) ~= "number" then return nil, "choose None, Reduced or Full" end
 		local v = Util.FormatNumber(value)
-		return setAll({ { def.cvars[1], v }, { def.cvars[2], v } })
+		return { { def.cvars[1], v }, { def.cvars[2], v } }
 	end,
 }
 
@@ -122,8 +114,8 @@ Composite.handlers.motionSickness = {
 		return (centered == 0) and (reduce == 1)
 	end,
 	GetDefault = function(def) return false end,
-	Set = function(def, value)
-		return setAll({ { def.cvars[1], value and "0" or "1" }, { def.cvars[2], value and "1" or "0" } })
+	Plan = function(def, value)
+		return { { def.cvars[1], value and "0" or "1" }, { def.cvars[2], value and "1" or "0" } }
 	end,
 }
 
@@ -154,11 +146,19 @@ end
 
 function Composite:Get(def) return self.handlers[def.composite].Get(def) end
 function Composite:GetDefault(def) return self.handlers[def.composite].GetDefault(def) end
-function Composite:Set(def, value) return self.handlers[def.composite].Set(def, value) end
+function Composite:Plan(def, value) return self.handlers[def.composite].Plan(def, value) end
+
+-- Returns ok, message, planResult. ok is true only if every CVar in the write set holds
+-- exactly the planned value.
+function Composite:Set(def, value)
+	local plan, err = self:Plan(def, value)
+	if not plan then return false, err end
+	local result = ns.Providers:ExecutePlan(plan)
+	if result.preflightError then return false, result.preflightError, result end
+	return result.allOk, ns.Providers.DescribePlan(result), result
+end
 
 function Composite:GetRaw(def)
-	local h = self.handlers[def.composite]
-	if h.GetRaw then return h.GetRaw(def) end
 	local parts = {}
 	for _, name in ipairs(def.cvars) do parts[#parts + 1] = name .. " = " .. tostring(Compat.GetCVar(name)) end
 	return table.concat(parts, "\n")

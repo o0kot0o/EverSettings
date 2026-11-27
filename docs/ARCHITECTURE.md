@@ -61,15 +61,18 @@ Adding a setting normally needs only a new definition. Adding a new storage mech
 
 `Changes:ApplyList` sorts by `applyOrder` (the graphics preset uses -10, so individually staged quality settings applied afterwards take priority), then for each change:
 
+0. `Changes:Preview`: write sets, overlapping writes (last writer wins) and dependency warnings from the effective values before any write. Overlaps are shown in the Apply confirmation.
 1. `Values.Validate`: invalid means **failed**, nothing written.
-2. `Providers:GetRestriction`: unavailable, read-only, locked, or secure/combat-restricted means **restricted**, and the change stays pending.
-3. Dependency check: produces warnings only.
-4. `Backup:RecordOriginal`: the first time only.
-5. `Providers:Set`, then `Providers:Get` (read back).
-6. Read-back equal to the request: **success**. Different from both the request and the previous value: **clamped** (adjusted by the client). Equal to the previous value: **rejected**. A write error: **failed**.
-7. Success and clamped results go to the history and become one undo operation.
+2. `Providers:GetRestriction`: unavailable, read-only, locked, or secure/combat-restricted means **restricted**.
+3. `Providers:Snapshot`: exact raw values of every CVar the setting can write; `Backup:RecordOriginal` (first time, per scope).
+4. The provider builds a raw write plan; `Providers:ExecutePlan` checks it as a whole, writes, reads back each CVar, and rolls back a partly failed multi-CVar plan. Staged backups and originals use `Providers:RestoreSnapshot` (exact raw values).
+5. Classification: **success**, **clamped** (the client stored something else), **rejected** (silent refusal), **failed** (error or nothing written), **partial** (multi-CVar plan partly failed; rollback report), **unknown** (value unreadable after the write).
+6. Every actual mutation is journalled with raw before/after snapshots (also for unsuccessful items) and becomes part of the undo operation; nothing is recorded when nothing changed.
+7. Final verification of the batch; settings overridden by a later change in the batch are noted.
+8. Every setting sharing a written CVar is refreshed and remembered, so polling does not log our side effects as external.
+9. Only success and clamped results leave the pending list.
 
-`Sync` is suspended during apply so EverSettings' own writes are not logged as external.
+Each item runs in `pcall`; `Sync:EndApply` always runs.
 
 ## Saved variables (`EverSettingsDB`, account-wide)
 
@@ -92,4 +95,9 @@ Adding a setting normally needs only a new definition. Adding a new storage mech
 | D11 | Bundled Inter font (SIL OFL 1.1, license shipped in `Media/Fonts`); client standard font for CJK | 0.1 screenshots showed Arial Narrow too small and thin at common UI scales; the client ships only display fonts and Arial Narrow |
 | D12 | The Details panel (inspector) is hidden by default, opened by its button or a double-click, and selection never auto-opens it; saved layout migrates once (v1 to v2) unless the player chose it | Issue #4: the empty inspector cost a quarter of the list width |
 | D13 | Own interface scale on the main window (dropdowns and dialogs follow it) | Readability independent of the game's UI scale |
+| D15 | Writes go through raw write plans (`Providers:ExecutePlan`): checked as a whole before writing, each CVar verified, rollback on partial failure, per-CVar outcome report | Issue #5 finding 1: composites could stop half-way while success was judged from the primary CVar only |
+| D16 | Journal of raw before/after snapshots per mutation; undo, redo and restores replay exact raw values with conflict detection (`Providers:RestoreSnapshot`) | Issue #5 findings 1 and 3: exact recovery of custom child values, no silent overwrite of external changes, retry of restricted entries |
+| D17 | In a batch the last writer of a CVar wins (applyOrder); overlaps are previewed before applying; every setting sharing a written CVar is refreshed and remembered as our own | Issue #5 finding 2 |
+| D18 | Originals keyed by scope (`account`, `machine`, `character:<name-realm>`); backup entries carry scope/owner/build/provider; character values restore only on their owner | Issue #5 finding 4. EverSettingsDB is account-wide SavedVariables |
+| D19 | Only fully successful requests leave the pending list; staging reconciles against live values | Issue #5 findings 5 and 6 |
 | D14 | Slider controls are never hidden, resized, re-ranged or re-positioned while `IsDraggingThumb()` is true | The in-game drag bug (#1); regression tests model the client cancelling drags |
