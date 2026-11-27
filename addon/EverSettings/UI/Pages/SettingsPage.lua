@@ -5,15 +5,27 @@ local _, ns = ...
 local Theme, UI, L, Util = ns.Theme, ns.UI, ns.L, ns.Util
 local Registry, Changes, Providers = ns.Registry, ns.Changes, ns.Providers
 
+-- Collapsible headers. Level 1 = category group (with icon) in grouped views,
+-- level 2 = subcategory inside a category page.
 local function CreateSectionHeader(list)
 	local h = CreateFrame("Button", nil, list)
-	h.bg = UI.Background(h, "section")
-	h.chevron = UI.Icon(h, "uitools-icon-chevron-down", 10, "textMuted")
-	h.chevron:SetPoint("LEFT", 14, 0)
-	h.label = UI.Text(h, 12, "text")
-	h.label:SetPoint("LEFT", 32, 0)
-	h.count = UI.Text(h, 11, "textDim")
+	h.bg = UI.Background(h, "content")
+	h.hover = h:CreateTexture(nil, "BACKGROUND", nil, 1)
+	h.hover:SetAllPoints()
+	UI.SetColor(h.hover, "rowHover")
+	h.hover:Hide()
+	h.chevron = UI.Icon(h, "chevron-down", 14, "textMuted")
+	h.chevron:SetPoint("LEFT", 16, 0)
+	h.icon = UI.Icon(h, "graphics", 16, "textMuted")
+	h.icon:SetPoint("LEFT", h.chevron, "RIGHT", 6, 0)
+	h.label = UI.Text(h, "sectionHeader", "text")
+	h.count = UI.Text(h, "meta", "textDim")
 	h.count:SetPoint("LEFT", h.label, "RIGHT", 8, 0)
+	h.line = UI.Line(h, "border", true)
+	h.line:SetPoint("BOTTOMLEFT", 16, 0)
+	h.line:SetPoint("BOTTOMRIGHT", -16, 0)
+	h:SetScript("OnEnter", function(self) self.hover:Show(); UI.SetIconColor(self.chevron, "text") end)
+	h:SetScript("OnLeave", function(self) self.hover:Hide(); UI.SetIconColor(self.chevron, "textMuted") end)
 	h:SetScript("OnClick", function(self)
 		local collapsed = ns.db.ui.collapsed
 		collapsed[self.key] = (not collapsed[self.key]) or nil
@@ -27,17 +39,26 @@ local function UpdateSectionHeader(h, item, list)
 	h.label:SetText(item.label)
 	h.count:SetText(item.count and tostring(item.count) or "")
 	local collapsed = ns.db.ui.collapsed[item.key]
-	UI.SetIcon(h.chevron, collapsed and "uitools-icon-chevron-right" or "uitools-icon-chevron-down", "textMuted")
-	h.label:SetFontObject(Theme:Font(item.level == 1 and 14 or 12, "text"))
-	UI.SetColor(h.bg, item.level == 1 and Theme.colors.content or Theme.colors.section)
+	UI.SetIcon(h.chevron, collapsed and "chevron-right" or "chevron-down", "textMuted")
+	h.label:ClearAllPoints()
+	if item.level == 1 and item.icon then
+		UI.SetIcon(h.icon, item.icon, "textMuted")
+		h.icon:Show()
+		h.label:SetPoint("LEFT", h.icon, "RIGHT", 8, 0)
+		UI.SetFont(h.label, "groupHeader", "text")
+	else
+		h.icon:Hide()
+		h.label:SetPoint("LEFT", h.chevron, "RIGHT", 6, 0)
+		UI.SetFont(h.label, "sectionHeader", "text")
+	end
 end
 
 local function CreateNotice(list)
 	local n = CreateFrame("Frame", nil, list)
-	n.title = UI.Text(n, 13, "text")
+	n.title = UI.Text(n, "settingName", "text")
 	n.title:SetPoint("TOPLEFT", 34, -16)
 	n.title:SetPoint("TOPRIGHT", -24, -16)
-	n.body = UI.Text(n, 11, "textMuted")
+	n.body = UI.Text(n, "settingDesc", "textMuted")
 	n.body:SetPoint("TOPLEFT", n.title, "BOTTOMLEFT", 0, -6)
 	n.body:SetPoint("TOPRIGHT", n.title, "BOTTOMRIGHT", 0, -6)
 	n.body:SetWordWrap(true)
@@ -64,17 +85,17 @@ function UI.CreateSettingsPage(parent, window)
 	page.window = window
 	page.errors = {}  -- [settingId] = validation message currently shown
 
-	page.title = UI.Text(page, 18, "text")
-	page.title:SetPoint("TOPLEFT", Theme.metrics.padding, -14)
-	page.meta = UI.Text(page, 11, "textDim", "RIGHT")
+	page.title = UI.Text(page, "pageTitle", "text")
+	page.title:SetPoint("TOPLEFT", Theme.metrics.padding, -16)
+	page.meta = UI.Text(page, "meta", "textMuted", "RIGHT")
 	page.meta:SetPoint("TOPRIGHT", -Theme.metrics.padding, -18)
-	page.desc = UI.Text(page, 12, "textMuted")
-	page.desc:SetPoint("TOPLEFT", Theme.metrics.padding, -40)
-	page.desc:SetPoint("TOPRIGHT", -Theme.metrics.padding, -40)
+	page.desc = UI.Text(page, "pageDesc", "textMuted")
+	page.desc:SetPoint("TOPLEFT", Theme.metrics.padding, -44)
+	page.desc:SetPoint("TOPRIGHT", -Theme.metrics.padding, -44)
 
 	local list = UI.CreateScrollList(page)
 	list.page = page
-	list:SetPoint("TOPLEFT", 0, -64)
+	list:SetPoint("TOPLEFT", 0, -72)
 	list:SetPoint("BOTTOMRIGHT", 0, 0)
 	list:RegisterType("section", Theme.metrics.sectionHeight, CreateSectionHeader, UpdateSectionHeader)
 	list:RegisterType("row", Theme.metrics.rowHeight, UI.CreateSettingRow, UI.UpdateSettingRow)
@@ -95,7 +116,7 @@ function UI.CreateSettingsPage(parent, window)
 			local group = byCat[cat.id]
 			if group then
 				local key = collapsePrefix .. cat.id
-				items[#items + 1] = { type = "section", key = key, label = cat.name, count = #group, level = 1 }
+				items[#items + 1] = { type = "section", key = key, label = cat.name, count = #group, level = 1, icon = cat.id }
 				if not ns.db.ui.collapsed[key] then
 					for _, def in ipairs(group) do items[#items + 1] = { type = "row", def = def } end
 				end

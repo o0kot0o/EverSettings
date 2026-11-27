@@ -8,10 +8,10 @@ function UI.CreateDiagnosticsPage(parent, window)
 	local page = CreateFrame("Frame", nil, parent)
 	page.window = window
 
-	page.title = UI.Text(page, 18, "text")
-	page.title:SetPoint("TOPLEFT", Theme.metrics.padding, -14)
+	page.title = UI.Text(page, "pageTitle", "text")
+	page.title:SetPoint("TOPLEFT", Theme.metrics.padding, -16)
 	page.title:SetText(L.DIAGNOSTICS)
-	page.desc = UI.Text(page, 12, "textMuted")
+	page.desc = UI.Text(page, "pageDesc", "textMuted")
 	page.desc:SetPoint("TOPLEFT", page.title, "BOTTOMLEFT", 0, -6)
 	page.desc:SetText("Copy this report into a GitHub issue when reporting problems. Everything here is read-only.")
 

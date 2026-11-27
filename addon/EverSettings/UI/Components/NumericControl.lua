@@ -7,39 +7,48 @@ local _, ns = ...
 
 local Theme, UI, Values, Util = ns.Theme, ns.UI, ns.Values, ns.Util
 
-local SLIDER_WIDTH, BOX_WIDTH = 168, 64
+local M = Theme.metrics
+local TRACK_HEIGHT, THUMB_SIZE = 6, 24 -- thumb texture is 24px; the visible knob is ~15px
 
+-- Layout (left to right): [ slider ] 10px [ edit box ] 4px [ unit ]. The control is
+-- right-aligned by its parent, so every row's edit box and unit line up.
 function UI.CreateNumericControl(parent)
 	local f = CreateFrame("Frame", nil, parent)
-	f:SetSize(SLIDER_WIDTH + BOX_WIDTH + 10, 24)
+	f.sliderWidth = M.sliderWide
+	f:SetSize(f.sliderWidth + 10 + M.editWidth + 4 + M.unitWidth, 28)
 
 	-- Slider ---------------------------------------------------------------
 	local s = CreateFrame("Slider", nil, f)
 	s:SetOrientation("HORIZONTAL")
-	s:SetSize(SLIDER_WIDTH, 18)
+	s:SetSize(f.sliderWidth, THUMB_SIZE)
 	s:SetPoint("LEFT")
 	s:SetObeyStepOnDrag(true)
 	s:EnableMouseWheel(false) -- avoid accidental changes while scrolling the list
 	s.track = s:CreateTexture(nil, "BACKGROUND")
 	s.track:SetPoint("LEFT")
 	s.track:SetPoint("RIGHT")
-	s.track:SetHeight(4)
-	UI.SetColor(s.track, Theme.colors.track)
+	s.track:SetHeight(TRACK_HEIGHT)
+	UI.SetColor(s.track, "track")
 	s.fill = s:CreateTexture(nil, "BORDER")
 	s.fill:SetPoint("LEFT", s.track, "LEFT")
-	s.fill:SetHeight(4)
-	UI.SetColor(s.fill, Theme.colors.accent)
+	s.fill:SetHeight(TRACK_HEIGHT)
+	UI.SetColor(s.fill, "accent")
 	local thumb = s:CreateTexture(nil, "OVERLAY")
-	thumb:SetSize(10, 16)
-	UI.SetColor(thumb, Theme.colors.text)
+	thumb:SetSize(THUMB_SIZE, THUMB_SIZE)
+	UI.SetIcon(thumb, "knob", "text")
 	s:SetThumbTexture(thumb)
 	s.thumb = thumb
 	f.slider = s
+	s:SetScript("OnEnter", function(self) if self:IsEnabled() then UI.SetIconColor(self.thumb, "accentHover") end end)
+	s:SetScript("OnLeave", function(self) UI.SetIconColor(self.thumb, "text") end)
 
-	-- Edit box ---------------------------------------------------------------
-	local e = UI.CreateEditBox(f, BOX_WIDTH, 22, "RIGHT")
+	-- Edit box and unit ---------------------------------------------------------
+	local e = UI.CreateEditBox(f, M.editWidth, 26, "RIGHT")
 	e:SetPoint("LEFT", s, "RIGHT", 10, 0)
 	f.edit = e
+	f.unit = UI.Text(f, "small", "textMuted", "LEFT")
+	f.unit:SetPoint("LEFT", e, "RIGHT", 6, 0)
+	f.unit:SetWidth(M.unitWidth)
 
 	f.updating = false
 
@@ -47,7 +56,20 @@ function UI.CreateNumericControl(parent)
 		local lo, hi = s:GetMinMaxValues()
 		local v = s:GetValue()
 		local pct = (hi > lo) and (v - lo) / (hi - lo) or 0
-		s.fill:SetWidth(math.max(1, SLIDER_WIDTH * Util.Clamp(pct, 0, 1)))
+		s.fill:SetWidth(math.max(1, f.sliderWidth * Util.Clamp(pct, 0, 1)))
+	end
+
+	-- Responsive width. Never resizes while the player is dragging.
+	function f:SetSliderWidth(width)
+		if width == self.sliderWidth or self:IsDragging() then return end
+		self.sliderWidth = width
+		s:SetWidth(width)
+		self:SetWidth(width + 10 + M.editWidth + 4 + M.unitWidth)
+		updateFill()
+	end
+
+	function f:SetUnit(text)
+		self.unit:SetText(text or "")
 	end
 
 	function f:Setup(def, lo, hi, step, onCommit, onError)
@@ -89,9 +111,10 @@ function UI.CreateNumericControl(parent)
 	function f:SetEnabled(enabled)
 		s:SetEnabled(enabled)
 		e:SetEnabled(enabled)
-		local a = enabled and 1 or 0.4
-		s:SetAlpha(a)
-		e:SetAlpha(a)
+		UI.SetColor(s.fill, enabled and "accent" or "textDisabled")
+		UI.SetIconColor(s.thumb, enabled and "text" or "textDisabled")
+		e:SetAlpha(enabled and 1 or 0.5)
+		self.unit:SetAlpha(enabled and 1 or 0.5)
 		if not enabled then e:ClearFocus() end
 	end
 

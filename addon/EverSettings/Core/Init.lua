@@ -2,16 +2,19 @@
 local addonName, ns = ...
 
 ns.name = addonName
-ns.version = "0.1.0-alpha"
+ns.version = "0.2.0-alpha"
 ns.TARGET_INTERFACE = 16001
 
 -- Saved variable layout version. Bump and add a migration in Boot.lua when the layout changes.
-ns.DB_VERSION = 1
+ns.DB_VERSION = 2
 
 ns.DB_DEFAULTS = {
 	dbVersion = ns.DB_VERSION,
-	window = { point = "CENTER", x = 0, y = 0, width = 1060, height = 680, inspector = true },
-	ui = { collapsed = {}, lastPage = "category:graphics" },
+	-- Details panel (inspector) is hidden on fresh installs; inspectorChosen records that the
+	-- player toggled it, so their choice is kept.
+	window = { point = "CENTER", x = 0, y = 0, width = 1100, height = 700, scale = 1,
+		inspector = false, inspectorChosen = false, inspectorWidth = 320 },
+	ui = { collapsed = {}, lastPage = "category:graphics", showTechnical = false, hideEmpty = false },
 	favorites = {},          -- [settingId] = true
 	profiles = {},           -- [name] = profile table (see Profiles.lua)
 	activeProfile = nil,

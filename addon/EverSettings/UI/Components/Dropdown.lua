@@ -4,12 +4,14 @@ local _, ns = ...
 
 local Theme, UI = ns.Theme, ns.UI
 
-local ROW_HEIGHT, MAX_ROWS = 24, 12
+local ROW_HEIGHT, MAX_ROWS = 28, 12
 local popup, blocker
 
 local function ClosePopup()
+	local owner = popup and popup.owner
 	if popup then popup:Hide() end
 	if blocker then blocker:Hide() end
+	if owner and owner.UpdateVisual then owner:UpdateVisual() end
 end
 UI.CloseDropdown = ClosePopup
 
@@ -51,8 +53,8 @@ local function EnsurePopup()
 				row.hl:Hide()
 				row.check = UI.Icon(row, "common-icon-checkmark", 12, "accent")
 				row.check:SetPoint("LEFT", 8, 0)
-				row.text = UI.Text(row, 12, "text")
-				row.text:SetPoint("LEFT", 26, 0)
+				row.text = UI.Text(row, "body", "text")
+				row.text:SetPoint("LEFT", 28, 0)
 				row.text:SetPoint("RIGHT", -8, 0)
 				row:SetScript("OnEnter", function(r)
 					r.hl:Show()
@@ -86,13 +88,13 @@ end
 
 function UI.CreateDropdown(parent, width)
 	local b = CreateFrame("Button", nil, parent)
-	b:SetSize(width or 200, 24)
+	b:SetSize(width or 200, 28)
 	b.bg = UI.Background(b, "control")
-	b.border = UI.Border(b, "border")
-	b.text = UI.Text(b, 12, "text")
-	b.text:SetPoint("LEFT", 8, 0)
-	b.text:SetPoint("RIGHT", -24, 0)
-	b.arrow = UI.Icon(b, "uitools-icon-chevron-down", 10, "textMuted")
+	b.border = UI.Border(b, "borderStrong")
+	b.text = UI.Text(b, "body", "text")
+	b.text:SetPoint("LEFT", 10, 0)
+	b.text:SetPoint("RIGHT", -28, 0)
+	b.arrow = UI.Icon(b, "chevron-down", 14, "textMuted")
 	b.arrow:SetPoint("RIGHT", -8, 0)
 	b.options = {}
 
@@ -109,12 +111,20 @@ function UI.CreateDropdown(parent, width)
 		end
 		self.text:SetText(value == nil and "—" or (tostring(value) .. " (undocumented)"))
 	end
+	function b:UpdateVisual()
+		local enabled = self:IsEnabled()
+		local open = popup and popup:IsShown() and popup.owner == self
+		UI.SetColor(self.bg, not enabled and "controlDisabled" or ((self.hovered or open) and "controlHover" or "control"))
+		self.border:SetColor(open and "accent" or "borderStrong")
+		UI.SetTextColor(self.text, enabled and "text" or "textDisabled")
+		UI.SetIconColor(self.arrow, enabled and (open and "accent" or "textMuted") or "textDisabled")
+	end
 	function b:SetDropdownEnabled(enabled)
 		self:SetEnabled(enabled)
-		self:SetAlpha(enabled and 1 or 0.4)
+		self:UpdateVisual()
 	end
-	b:SetScript("OnEnter", function(self) UI.SetColor(self.bg, Theme.colors.controlHover) end)
-	b:SetScript("OnLeave", function(self) UI.SetColor(self.bg, Theme.colors.control) end)
+	b:SetScript("OnEnter", function(self) self.hovered = true; self:UpdateVisual() end)
+	b:SetScript("OnLeave", function(self) self.hovered = false; self:UpdateVisual() end)
 	b:SetScript("OnHide", function(self) if popup and popup.owner == self then ClosePopup() end end)
 	b:SetScript("OnClick", function(self)
 		local p = EnsurePopup()
@@ -128,9 +138,12 @@ function UI.CreateDropdown(parent, width)
 		for i, opt in ipairs(self.options) do
 			if opt.value == self.value and i > MAX_ROWS then p.offset = math.min(i - 1, #self.options - MAX_ROWS) end
 		end
+		-- Match the window's scale (EverSettings has its own interface scale).
+		p:SetScale(self:GetEffectiveScale() / UIParent:GetEffectiveScale())
 		p:Render()
 		blocker:Show()
 		p:Show()
+		self:UpdateVisual()
 	end)
 	return b
 end

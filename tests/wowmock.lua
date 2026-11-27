@@ -82,8 +82,16 @@ function Impl.GetPoint(self, i)
 	return p[1], nil, p[1], 0, 0
 end
 function Impl.SetAllPoints(self) self.__points = { { "ALL" } } end
-function Impl.GetEffectiveScale() return 1 end
-function Impl.GetScale() return 1 end
+function Impl.SetScale(self, s) self.__scale = s end
+function Impl.GetScale(self) return self.__scale or 1 end
+function Impl.GetEffectiveScale(self)
+	local s, o = 1, self
+	while o do s = s * (o.__scale or 1); o = o.__parent end
+	return s
+end
+function Impl.GetRight(self) return self.__right or 1000 end
+function Impl.GetLeft(self) return self.__left or 0 end
+function Impl.IsMouseOver(self) return self.__mouseOver == true end
 
 -- Visibility
 function Impl.Show(self)
@@ -213,6 +221,8 @@ function Impl.GetValue(self) return self.__value end
 
 -- Textures
 function Impl.SetAtlas(self, atlas) self.__atlas = atlas; return true end
+function Impl.SetTexture(self, file) self.__texture = file; return true end
+function Impl.IsTruncated(self) return self.__truncated == true end
 function Impl.SetColorTexture(self, r, g, b, a) self.__color = { r, g, b, a } end
 
 -- Scroll frames

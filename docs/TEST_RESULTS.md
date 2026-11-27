@@ -2,7 +2,7 @@
 
 Three levels are tracked separately: **code implemented**, **offline tested**, **in-game verified**.
 
-## Offline tests: 95 passed, 0 failed (2026-11-27)
+## Offline tests: 108 passed, 0 failed (2026-11-27)
 
 Command: `.\scripts\test.ps1 -v` (Python 3.12, lupa 2.x, Lua 5.1 runtime). Addon load time offline: about 11 ms.
 
@@ -128,7 +128,7 @@ The addon has been deployed to the development machine's Forever install (`_fore
 | 9 | Secure in combat | Enter combat, try to change UI Scale or Auto Stand: disabled with a combat reason; leaving combat re-enables it | pending |
 | 10 | Unsupported APIs handled | `/es diag` lists capabilities; options unsupported by your GPU are disabled | pending |
 | 11 | Responsive with a large list | CVar Browser: scroll and filter 1,785 variables smoothly | pending |
-| 12 | Layout | Window resize, text not overlapping, badges positioned, inspector scrolls | pending |
+| 12 | Layout | Window resize, text not overlapping, badges positioned, inspector scrolls; 0.2: Details button, panel resize, interface scale, icons and fonts render | pending (0.2) |
 | 13 | Secure write outside combat | Apply UI Scale out of combat and read back (research question 1) | pending |
 
 Please attach screenshots of the main window, the inspector, the CVar browser and the profiles page to `docs/screenshots/`.

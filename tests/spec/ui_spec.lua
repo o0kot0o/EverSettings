@@ -73,21 +73,216 @@ describe("main window", function()
 		eq(ns.db.window.width, 1000)
 		eq(ns.db.window.height, 600)
 		W:ResetPosition()
-		eq(ns.db.window.width, 1060)
+		eq(ns.db.window.width, 1100)
 	end)
 
-	it("toggles the inspector and shows setting details", function()
+	it("selecting a setting fills the Details panel without opening it", function()
 		open()
+		W:SetInspectorShown(false)
 		W:Navigate("category:graphics")
 		W:InspectSetting(def("graphics.gamma"))
-		truthy(W.frame.inspector:IsShown())
-		W:SetInspectorShown(false)
-		falsy(W.frame.inspector:IsShown())
+		falsy(W.frame.inspector:IsShown(), "selection alone keeps the list full width")
+		eq(W.frame.inspector.current.id, "graphics.gamma")
 		W:InspectCVar("farclip")
-		truthy(W.frame.inspector:IsShown(), "inspecting re-opens the inspector")
+		falsy(W.frame.inspector:IsShown())
 		W:RevealSetting("camera.shake")
 		eq(W.currentKey, "category:camera")
 		eq(W.pages.settings.selectedId, "camera.shake")
+	end)
+end)
+
+describe("layout preferences", function()
+	it("Details panel is hidden by default on a fresh install", function()
+		eq(ns.DB_DEFAULTS.window.inspector, false)
+		eq(ns.DB_DEFAULTS.window.inspectorChosen, false)
+	end)
+
+	it("Details button toggles the panel, remembers the choice and widens the list", function()
+		local f = open()
+		W:SetInspectorShown(false)
+		ns.db.window.inspectorChosen = false
+		local function contentRightAnchor()
+			for _, p in ipairs(f.content.__points) do
+				if p[1] == "BOTTOMRIGHT" then return p[2] end
+			end
+		end
+		eq(contentRightAnchor(), f.footer, "list spans to the window edge when Details is closed")
+		MOCK.Click(f.detailsButton)
+		truthy(f.inspector:IsShown())
+		eq(ns.db.window.inspector, true)
+		eq(ns.db.window.inspectorChosen, true, "player choice recorded")
+		truthy(f.detailsButton.selected, "button shows the open state")
+		eq(contentRightAnchor(), f.inspector, "list stops at the panel")
+		MOCK.Click(f.detailsButton)
+		falsy(f.inspector:IsShown())
+		eq(ns.db.window.inspector, false)
+	end)
+
+	it("double-clicking a setting opens Details on it", function()
+		open()
+		W:SetInspectorShown(false)
+		W:Navigate("category:graphics")
+		local row = findRow("graphics.gamma")
+		MOCK.Script(row, "OnDoubleClick", "LeftButton")
+		truthy(W.frame.inspector:IsShown())
+		eq(W.frame.inspector.current.id, "graphics.gamma")
+		W:SetInspectorShown(false)
+	end)
+
+	it("Details panel width is adjustable, clamped and saved", function()
+		local f = open()
+		f:SetSize(1400, 800)
+		W:SetInspectorShown(true)
+		eq(W:SetInspectorWidth(400), 400)
+		eq(ns.db.window.inspectorWidth, 400)
+		eq(math.floor(f.inspector:GetWidth()), 400)
+		eq(W:SetInspectorWidth(100), ns.Theme.metrics.inspectorMin, "minimum")
+		eq(W:SetInspectorWidth(5000), ns.Theme.metrics.inspectorMax, "maximum")
+		f:SetSize(1100, 700)
+		eq(W:ClampInspectorWidth(500), 1100 - ns.Theme.metrics.sidebarWidth - 440, "list keeps a minimum width of 440")
+		f:SetSize(900, 600)
+		eq(W:ClampInspectorWidth(500), ns.Theme.metrics.inspectorMin, "on narrow windows the panel minimum applies")
+		W:SetInspectorShown(false)
+		f:SetSize(1100, 700)
+	end)
+
+	it("migration hides the Details panel unless the player chose it", function()
+		local saved = ns.Util.CopyTable(ns.db.window)
+		local migrate = function(db)
+			-- Same rule as Boot.lua's v1 -> v2 migration.
+			if db.dbVersion < 2 and not db.window.inspectorChosen then db.window.inspector = false end
+		end
+		local old = { dbVersion = 1, window = { inspector = true } }
+		migrate(old)
+		eq(old.window.inspector, false)
+		local chosen = { dbVersion = 1, window = { inspector = true, inspectorChosen = true } }
+		migrate(chosen)
+		eq(chosen.window.inspector, true)
+		ns.db.window = saved
+	end)
+
+	it("interface scale applies to the window, is clamped and saved", function()
+		local f = open()
+		eq(W:SetScale(1.25), 1.25)
+		eq(f:GetScale(), 1.25)
+		eq(ns.db.window.scale, 1.25)
+		eq(W:SetScale(9), ns.Theme.metrics.scaleMax)
+		eq(W:SetScale(0.1), ns.Theme.metrics.scaleMin)
+		W:SetScale(1)
+	end)
+
+	it("preferences page sets the scale through the slider + edit box", function()
+		open()
+		W:Navigate("preferences")
+		local edit = W.pages.preferences.scaleControl.edit
+		edit:SetFocus(); edit:SetText("120"); MOCK.Script(edit, "OnEnterPressed")
+		near(ns.db.window.scale, 1.2)
+		near(W.frame:GetScale(), 1.2)
+		edit:SetFocus(); edit:SetText("500"); MOCK.Script(edit, "OnEnterPressed")
+		truthy(edit.hasError, "out of range is rejected")
+		near(ns.db.window.scale, 1.2)
+		MOCK.Script(edit, "OnEscapePressed")
+		W:SetScale(1)
+		eq(writes(), 0, "preferences never touch game settings")
+	end)
+
+	it("hide empty categories removes them from the sidebar", function()
+		open()
+		ns.db.ui.hideEmpty = false
+		local function has(key)
+			for _, item in ipairs(W:BuildNavItems()) do if item.key == key then return true end end
+			return false
+		end
+		truthy(has("category:network"))
+		MOCK.Click(W.pages.preferences.hideEmptyRow.toggle)
+		eq(ns.db.ui.hideEmpty, true)
+		falsy(has("category:network"))
+		truthy(has("category:graphics"))
+		ns.db.ui.hideEmpty = false
+	end)
+
+	it("technical names can be shown in rows", function()
+		open()
+		ns.db.ui.showTechnical = true
+		W:Navigate("category:graphics")
+		local row = findRow("graphics.gamma")
+		truthy(row.technical:IsShown())
+		eq(row.technical:GetText(), "Gamma")
+		ns.db.ui.showTechnical = false
+		W.pages.settings:RefreshRows()
+		falsy(row.technical:IsShown())
+	end)
+
+	it("resizing keeps every row's controls the same width and adapts to the list width", function()
+		local f = open()
+		W:Navigate("category:graphics")
+		local page = W.pages.settings
+		local function widths()
+			local sliders = {}
+			page.list:ForEachVisible(function(frame)
+				if frame.controls and frame.controls.slider and frame.controls.slider:IsShown() then
+					sliders[#sliders + 1] = frame.controls.slider.sliderWidth
+				end
+			end)
+			return sliders
+		end
+		page.list:SetWidth(900); page.list:Render(true)
+		local wide = widths()
+		truthy(#wide >= 2)
+		for _, w in ipairs(wide) do eq(w, ns.Theme.metrics.sliderWide) end
+		page.list:SetWidth(600); page.list:Render(true)
+		for _, w in ipairs(widths()) do eq(w, ns.Theme.metrics.sliderNarrow) end
+		page.list:SetWidth(0)
+		f:SetSize(1100, 700)
+	end)
+
+	it("a resize during a drag does not change the slider under the cursor", function()
+		open()
+		W:Navigate("category:graphics")
+		local page = W.pages.settings
+		page.list:SetWidth(900); page.list:Render(true)
+		local row = findRow("graphics.gamma")
+		local control = row.controls.slider
+		MOCK.cancelledDrags = 0
+		control.slider.__draggingThumb = true
+		page.list:SetWidth(600)
+		page:RefreshRows()
+		eq(control.sliderWidth, ns.Theme.metrics.sliderWide, "width frozen while dragging")
+		eq(MOCK.cancelledDrags, 0)
+		control.slider.__draggingThumb = false
+		page:RefreshRows()
+		eq(control.sliderWidth, ns.Theme.metrics.sliderNarrow, "applied after the drag")
+		page.list:SetWidth(0)
+	end)
+
+	it("truncated descriptions offer the full text as a tooltip", function()
+		open()
+		W:Navigate("category:graphics")
+		local row = findRow("graphics.renderScale")
+		local shown
+		local orig = UI_ShowTooltipBackup or ns.UI.ShowTooltip
+		ns.UI.ShowTooltip = function(_, title, body) shown = { title, body } end
+		row.desc.__truncated = true
+		MOCK.Script(row, "OnEnter")
+		ns.UI.ShowTooltip = orig
+		truthy(shown, "tooltip shown")
+		eq(shown[2], def("graphics.renderScale").description)
+		row.desc.__truncated = false
+		MOCK.Script(row, "OnLeave")
+	end)
+
+	it("Apply shows the pending count and a neutral disabled state", function()
+		local f = open()
+		ns.Changes:DiscardAll()
+		MOCK.RunTimers()
+		W:UpdateFooter()
+		falsy(f.apply:IsEnabled())
+		eq(f.apply:GetText(), "Apply")
+		ns.Changes:Stage(def("qol.autoLoot"), true)
+		W:UpdateFooter()
+		truthy(f.apply:IsEnabled())
+		eq(f.apply:GetText(), "Apply (1)")
+		ns.Changes:DiscardAll()
 	end)
 end)
 

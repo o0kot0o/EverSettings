@@ -7,8 +7,12 @@ local frame = CreateFrame("Frame")
 ns.eventFrame = frame
 
 local function Migrate(db)
-	db.dbVersion = db.dbVersion or ns.DB_VERSION
-	-- Future layout migrations go here, keyed on db.dbVersion.
+	db.dbVersion = db.dbVersion or 1
+	if db.dbVersion < 2 then
+		-- 0.1.0 opened the Details panel by default without it being a player choice; from
+		-- 0.2 it is hidden unless the player turns it on.
+		if not db.window.inspectorChosen then db.window.inspector = false end
+	end
 	db.dbVersion = ns.DB_VERSION
 end
 

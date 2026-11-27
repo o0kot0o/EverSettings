@@ -86,5 +86,10 @@ Adding a setting normally needs only a new definition. Adding a new storage mech
 | D5 | The CVar browser is read-only | Unknown variables stay read-only until researched |
 | D6 | Profiles store canonical values per setting id, not raw CVar strings | Lets imports be validated against the local database, and keeps composites coherent |
 | D7 | A strict offline mock built from the Forever widget/API dumps | Catches calls to methods or handlers that do not exist on Forever before testing in game |
-| D8 | No category icons in Milestone A; text sidebar with an accent indicator | Forever ships only a few suitable monochrome atlases; icon set handed to design review |
-| D9 | Arial Narrow UI font (`Fonts\ARIALN.TTF`), standard font for CJK/ruRU | Compact, neutral look at small sizes |
+| D8 | ~~No category icons in Milestone A~~ (superseded by D10) | Forever ships only a few suitable monochrome atlases |
+| D9 | ~~Arial Narrow UI font~~ (superseded by D11) | Compact, neutral look at small sizes |
+| D10 | Lucide icons rendered to tinted 32×32 TGAs (`tools/icons`), ISC license file shipped in `Media/Icons` | Issue #4 asked for consistent monochrome category icons; Forever's atlases have no coherent set. TGAs are WoW's native addon texture format |
+| D11 | Bundled Inter font (SIL OFL 1.1, license shipped in `Media/Fonts`); client standard font for CJK | 0.1 screenshots showed Arial Narrow too small and thin at common UI scales; the client ships only display fonts and Arial Narrow |
+| D12 | The Details panel (inspector) is hidden by default, opened by its button or a double-click, and selection never auto-opens it; saved layout migrates once (v1 to v2) unless the player chose it | Issue #4: the empty inspector cost a quarter of the list width |
+| D13 | Own interface scale on the main window (dropdowns and dialogs follow it) | Readability independent of the game's UI scale |
+| D14 | Slider controls are never hidden, resized, re-ranged or re-positioned while `IsDraggingThumb()` is true | The in-game drag bug (#1); regression tests model the client cancelling drags |

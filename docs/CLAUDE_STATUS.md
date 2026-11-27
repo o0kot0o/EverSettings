@@ -1,10 +1,10 @@
 # Claude status
 
-_Last updated: 2026-11-27, Milestone A commit (see `git log`)._
+_Last updated: 2026-11-27, 0.2.0-alpha UI refinement (issue #4)._
 
 ## Current milestone
 
-**Milestone A: Foundation.** Implemented and offline tested. **Not yet verified in game.** Claude cannot run the game client; the in-game test plan is in [TEST_RESULTS.md](TEST_RESULTS.md).
+**Milestone A: Foundation**, plus the **0.2 UI refinement** (issue #4). Implemented and offline tested. In game: loading, discovery, slider/edit-box behaviour, validation and external-change sync are confirmed on 0.1. **The 0.2 UI has not been seen in game yet.** Claude cannot run the game client; the in-game test plan is in [TEST_RESULTS.md](TEST_RESULTS.md).
 
 ## Implemented features
 
@@ -28,27 +28,29 @@ _Last updated: 2026-11-27, Milestone A commit (see `git log`)._
 | Profiles: CRUD, compare, selective categories, import/export | yes | yes | no |
 | Technical CVar browser (read-only, virtualized) | yes | yes | no |
 | Diagnostics page and `/es diag` | yes | yes | no |
+| 0.2 UI refinement: Inter typography and type scale, interface scale, Details panel (hidden by default, button, double-click, resizable, remembered), sidebar icons, responsive control tiers, refined slider/toggle/dropdown/buttons, two-line descriptions with truncation tooltips, technical names, Preferences page | yes | yes (13 layout tests) | **no: needs 0.2 screenshots** |
 | 86 curated definitions (Graphics 33, Camera 12, QoL 18, Performance 7, Questing 7, Interface 2, Accessibility 1, read-only info 6) | yes | yes (schema, defaults valid, catalog cross-check) | no |
 
 ## Recent changes
 
+- **0.2 UI refinement (#4):** see [CHANGELOG.md](../CHANGELOG.md) and [UI_DESIGN.md](UI_DESIGN.md). Decisions D10–D14 are in [ARCHITECTURE.md](ARCHITECTURE.md#decision-log). The slider drag fix is preserved, and the layout code never hides, resizes or re-ranges a slider while it is dragged (regression-tested).
+- Slider drag bug fixed (confirmed in game), compact range errors, live discovery findings documented.
 - Initial implementation of Milestone A (all of the above).
 - Bugs found and fixed by the offline tests during development: undo of `false` values (Lua `and/or` trap), redo replaying the wrong side, profile names with spaces failing the checksum, the "custom" camera-shake option being selectable, and over-constrained font-string anchors.
 
 ## Current limitations
 
 - No in-game verification yet; every `persist` evidence entry is `unknown`.
-- No screenshots yet (they must be of the real addon in game).
+- Screenshots: 0.1 "before" screenshots are committed; 0.2 screenshots are still needed.
 - Display mode, resolution and full MSAA anti-aliasing are not implemented (they need careful composites).
 - Categories without researched settings (Combat, Targeting, Nameplates, Controls, Audio, Network) show an empty state that points to the CVar browser.
 - No live preview (by design until settings are verified as safely restorable).
-- No category icons (design question handed to ChatGPT).
 - English only.
 - Undo/redo stacks last for the session only (history is persistent).
 
 ## Known bugs
 
-None known. Fixed: slider drag (two attempts; confirmed working in game 2026-11-27, see #1).
+None known on 0.1. 0.2 changed most of the UI and has only been tested offline, so expect visual issues on the first in-game run.
 
 ## Settings database coverage
 
@@ -60,7 +62,7 @@ First result (2026-11-27, owner): **the addon loads, and `/es diag` and runtime 
 
 ## Offline test results
 
-92 passed, 0 failed (`.\scripts\test.ps1`). Details: [TEST_RESULTS.md](TEST_RESULTS.md).
+108 passed, 0 failed (`.\scripts\test.ps1`). Details: [TEST_RESULTS.md](TEST_RESULTS.md).
 
 ## Open GitHub issues
 
@@ -70,7 +72,7 @@ First result (2026-11-27, owner): **the addon loads, and `/es diag` and runtime 
 | [#2](https://github.com/o0kot0o/EverSettings/issues/2) | Research: can addons write secure CVars on Forever? | research |
 | [#3](https://github.com/o0kot0o/EverSettings/issues/3) | Research: documented ranges for hidden camera, nameplate and combat variables | research |
 | [#4](https://github.com/o0kot0o/EverSettings/issues/4) | Design review: visual polish and category icons | design |
-| [#5](https://github.com/o0kot0o/EverSettings/issues/5) | Code review: apply pipeline, sync and import safety | review |
+| [#5](https://github.com/o0kot0o/EverSettings/issues/5) | Code review: apply pipeline, sync and import safety | review. **No review comments have been posted on GitHub yet**; writable coverage stays unchanged until they arrive. |
 
 ## Questions requiring further research
 
@@ -83,6 +85,8 @@ See [SETTINGS_RESEARCH.md: Open research questions](SETTINGS_RESEARCH.md#open-re
 
 ## Recommended next steps
 
-1. Owner runs the in-game test plan, reports errors (BugSack output) and adds screenshots.
-2. Fix in-game issues and record verification evidence in the definitions.
-3. Milestone C database expansion, starting with Nameplates and Combat (spell queue, combat text), which players ask for most.
+1. Owner checks 0.2 in game and provides screenshots (main window, Details open, Preferences, a narrow window).
+2. Post ChatGPT's safety review on #5 so it can be addressed before writable coverage grows.
+3. Owner continues the in-game test plan (#1) and reports errors (BugSack output).
+4. Fix in-game issues and record verification evidence in the definitions.
+5. Milestone C database expansion, starting with Nameplates and Combat (spell queue, combat text), which players ask for most.

@@ -4,7 +4,7 @@ A professional, research-driven settings manager for **World of Warcraft: Foreve
 
 EverSettings presents standard Blizzard settings, hidden console variables (CVars) and advanced options in one organised, searchable window, with clear controls, safe staged changes, backups and profiles. It is not just another CVar browser: every editable setting has researched ranges, sources and a verification status, and unknown variables stay read-only until they are researched.
 
-> **Status: Milestone A (foundation), alpha.** Offline tested (92 automated tests). **Not yet verified in game.** See [docs/CLAUDE_STATUS.md](docs/CLAUDE_STATUS.md).
+> **Status: Milestone A (foundation) plus UI refinement, alpha.** Offline tested (108 automated tests). Loads in game; slider, validation and external-change sync confirmed in game; the rest of the in-game checklist (#1) is in progress. See [docs/CLAUDE_STATUS.md](docs/CLAUDE_STATUS.md).
 
 ## Features (Milestone A)
 
@@ -57,5 +57,8 @@ Development happens on GitHub between the owner, Claude (implementation) and Cha
 - [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md): milestones
 
 ## Acknowledgements
+
+Bundled assets: the [Inter](https://github.com/rsms/inter) typeface (SIL Open Font License 1.1, `addon/EverSettings/Media/Fonts/Inter-LICENSE.txt`) and icons rendered from [Lucide](https://lucide.dev) (ISC license, `addon/EverSettings/Media/Icons/Lucide-LICENSE.txt`).
+
 
 Research data comes from [Ketho/BlizzardInterfaceResources](https://github.com/Ketho/BlizzardInterfaceResources/tree/forever) (client CVar, API and widget dumps), [Gethe/wow-ui-source](https://github.com/Gethe/wow-ui-source/tree/forever) (Blizzard's Forever UI code) and [ForeverPlusPlus](https://github.com/xIGBClutchIx/ForeverPlusPlus/blob/main/docs/forever-api.md) (Forever API notes).

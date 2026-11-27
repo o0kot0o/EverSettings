@@ -35,7 +35,7 @@ function UI.CreateInspector(parent, window)
 	-- Simple flowing layout: a pool of font strings and buttons stacked top to bottom.
 	f.texts, f.buttons, f.badges = {}, {}, {}
 	local y, textIndex, buttonIndex, badgeIndex
-	local WIDTH = Theme.metrics.inspectorWidth - 32
+	f.textWidth = Theme.metrics.inspectorWidth - 32
 
 	local function Begin()
 		y, textIndex, buttonIndex, badgeIndex = -16, 0, 0, 0
@@ -44,17 +44,17 @@ function UI.CreateInspector(parent, window)
 		for _, b in ipairs(f.badges) do b:Hide() end
 	end
 
-	local function Text(str, size, color, gap)
+	local function Text(str, size, color, gap, weight)
 		textIndex = textIndex + 1
 		local t = f.texts[textIndex]
 		if not t then
 			t = UI.Text(content, 12, "text")
 			t:SetWordWrap(true)
 			t:SetJustifyV("TOP")
-			t:SetWidth(WIDTH)
 			f.texts[textIndex] = t
 		end
-		t:SetFontObject(Theme:Font(size or 12, color or "text"))
+		t:SetWidth(f.textWidth)
+		t:SetFontObject(Theme:Font(size or 12, color or "text", weight))
 		t:SetText(str)
 		t:ClearAllPoints()
 		t:SetPoint("TOPLEFT", 16, y)
@@ -65,7 +65,7 @@ function UI.CreateInspector(parent, window)
 
 	local function Heading(str)
 		y = y - 8
-		Text(str, 10, "textDim", 4)
+		Text(str, 10, "textDim", 6, "semibold")
 	end
 
 	local function KV(key, value, color)
@@ -93,11 +93,12 @@ function UI.CreateInspector(parent, window)
 		buttonIndex = buttonIndex + 1
 		local b = f.buttons[buttonIndex]
 		if not b then
-			b = UI.CreateButton(content, "", "ghost", WIDTH, 22)
+			b = UI.CreateButton(content, "", "ghost", f.textWidth, 24)
 			b.label:SetJustifyH("LEFT")
 			f.buttons[buttonIndex] = b
 		end
 		b:SetText(label)
+		b:SetWidth(f.textWidth)
 		b:SetScript("OnClick", onClick)
 		b:ClearAllPoints()
 		b:SetPoint("TOPLEFT", 10, y)
@@ -112,7 +113,7 @@ function UI.CreateInspector(parent, window)
 
 	function f:ShowEmpty()
 		Begin()
-		Text(L.INSPECTOR, 15, "text", 8)
+		Text("Details", 16, "text", 8, "semibold")
 		Text("Select a setting to see its full description, values, restrictions, research sources and verification status.", 12, "textMuted")
 		Finish()
 	end
@@ -121,13 +122,13 @@ function UI.CreateInspector(parent, window)
 		if not def then return self:ShowEmpty() end
 		self.current = { kind = "setting", id = def.id }
 		Begin()
-		Text(def.name, 15, "text", 4)
+		Text(def.name, 16, "text", 4, "semibold")
 		Text(def.technical, 11, "textDim", 8)
 		local badges = { { Theme.statusLabels[def.statusSummary] or def.statusSummary, def.statusSummary } }
 		badges[#badges + 1] = { def.classification:upper(), def.classification == "standard" and "textMuted" or "warning" }
 		if def.apply ~= "immediate" then badges[#badges + 1] = { (def.apply == "gxrestart" and "GX RESTART" or def.apply:upper()), "info" } end
 		Badges(badges)
-		Text(def.description, 12, "textMuted", 8)
+		Text(def.description, 13, "textMuted", 10)
 
 		local available, reason = Providers:IsAvailable(def)
 		local current = available and Providers:Get(def) or nil
@@ -214,7 +215,7 @@ function UI.CreateInspector(parent, window)
 		local entry, canonical = Registry.FindCatalogEntry(name)
 		canonical = canonical or name
 		Begin()
-		Text(canonical, 15, "text", 4)
+		Text(canonical, 16, "text", 4, "semibold")
 		Text("Console variable (read-only in EverSettings)", 11, "textDim", 8)
 		local help = entry and entry[5]
 		local d = ns.Discovery.last
@@ -249,6 +250,17 @@ function UI.CreateInspector(parent, window)
 		Heading("SOURCES")
 		Text("• Client CVar dump " .. tostring(ns.CVarCatalog.meta.cvarsBuild), 11, "textMuted", 3)
 		Finish()
+	end
+
+	-- Called when the panel is resized: reflow text to the new width.
+	function f:SetPanelWidth(width)
+		self:SetWidth(width)
+		content:SetWidth(width - 2)
+		self.textWidth = width - 32
+		local c = self.current
+		if not c then self:ShowEmpty()
+		elseif c.kind == "cvar" then self:ShowCVar(c.name)
+		else self:Refresh() end
 	end
 
 	function f:Refresh()

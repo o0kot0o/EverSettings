@@ -27,7 +27,7 @@ R:DefineGroup({ category = "camera" }, {
 		description = "Adjusts the maximum distance the camera will follow behind you.",
 		keywords = { "zoom", "distance", "max zoom", "cameraDistanceMaxZoomFactor" },
 		provider = "cvar", cvar = "cameraDistanceMaxZoomFactor", control = "slider", valueType = "number",
-		min = 1.0, max = 2.0, step = 0.1,
+		min = 1.0, max = 2.0, step = 0.1, suffix = "×",
 		rangeSource = "Camelot/ControlsOverrides.lua CreateSliderOptions(1.0, 2.0, .1). Values beyond 2.0 are not offered: the Forever console limit is unverified (Retail clamps at 2.6, Classic Era at 4.0 per community reports).",
 		sources = { CTRL_CAMELOT .. " (Max Camera Distance)", FPP .. " ('How far past 2.0 the console takes it ... Unverified')", STR .. " OPTION_TOOLTIP_MAX_FOLLOW_DIST" },
 		verification = standard(),

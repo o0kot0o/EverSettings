@@ -1,0 +1,7 @@
+{
+  "name": "eversettings-icons",
+  "private": true,
+  "type": "module",
+  "description": "Build tool for EverSettings icon textures (not shipped)",
+  "dependencies": { "lucide-static": "1.82.0", "sharp": "^0.34.0" }
+}

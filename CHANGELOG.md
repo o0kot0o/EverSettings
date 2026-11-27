@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.0-alpha (UI refinement, issue #4)
+
+- Typography: bundled Inter font with a type scale, higher-contrast secondary text, and an independent interface scale (70–160%).
+- Details panel (inspector): hidden by default, a labelled Details button, double-click to open, adjustable width, preference remembered. Existing installs migrate once unless the player chose to show it.
+- Sidebar: monochrome category icons, right-aligned counts, separated groups, a stronger active state, optional hiding of empty categories.
+- Controls: thicker slider track, round knob with a larger hit area, unit labels (%, ×, fps, °), 2px focus rings, a redesigned toggle, consistent dropdowns, hover and disabled states.
+- Rows: two-line descriptions, a full-text tooltip when truncated, optional technical names, a distinct pending bar versus modified dot, a favourite star on hover, and a reset icon only when useful.
+- Header and footer: logo tile and version badge, profile selector with Manage, a larger responsive search box, Apply showing the pending count, and a neutral disabled style.
+- New Preferences page; responsive layout tiers; 13 new layout tests (108 total).
+- Fixes: slider drag (IsDraggingThumb, no hiding of the active control); compact range errors.
+
+
 ## 0.1.0-alpha (Milestone A, unreleased)
 
 Foundation release. Offline tested; not yet verified in game.

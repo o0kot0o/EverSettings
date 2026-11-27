@@ -1,13 +1,22 @@
--- One settings row: favorite star, name and badges, one-line description, the correct
--- control for the setting, an individual reset button and a modified/pending indicator.
+-- One settings row.
+--
+--   [pending bar][modified dot][star] Name  technical  BADGES              [control][unit] [reset]
+--                                     Description, up to two lines
+--
+-- Controls share one right-aligned column whose width depends only on the list width, so
+-- slider and edit-box widths are identical across rows. The active control is never hidden
+-- or re-created during a refresh (hiding a slider cancels a drag in progress).
 local _, ns = ...
 
 local Theme, UI, L = ns.Theme, ns.UI, ns.L
 local Values, Providers, Changes = ns.Values, ns.Providers, ns.Changes
+local M = Theme.metrics
 
 local APPLY_BADGES = { restart = "RESTART", reload = "RELOAD", gxrestart = "GX RESTART" }
+local TEXT_LEFT = 46
+local RIGHT_RESERVE = 8 + 26 + 10 -- reset button and gaps to the right of the control column
 
--- Row descriptions are one short line, so errors are kept compact ("Allowed 0.3 to 2.8").
+-- Row descriptions are short, so errors are kept compact ("Allowed 0.3 to 2.8").
 function UI.FormatError(message)
 	message = tostring(message or "invalid value")
 	return message:sub(1, 1):upper() .. message:sub(2)
@@ -16,19 +25,19 @@ end
 local function EnsureControl(r, kind)
 	if r.controls[kind] then return r.controls[kind] end
 	local c
+	local alignRight = -(M.unitWidth + 4) -- line toggles/dropdowns up with the edit boxes
 	if kind == "slider" then
 		c = UI.CreateNumericControl(r.controlArea)
 		c:SetPoint("RIGHT")
 	elseif kind == "toggle" then
 		c = UI.CreateToggle(r.controlArea)
-		c:SetPoint("RIGHT", -2, 0)
+		c:SetPoint("RIGHT", alignRight, 0)
 	elseif kind == "dropdown" then
-		c = UI.CreateDropdown(r.controlArea, 220)
-		c:SetPoint("RIGHT")
+		c = UI.CreateDropdown(r.controlArea, M.sliderWide + 10 + M.editWidth)
+		c:SetPoint("RIGHT", alignRight, 0)
 	elseif kind == "value" then
-		c = UI.Text(r.controlArea, 12, "textMuted", "RIGHT")
-		c:SetPoint("RIGHT", -2, 0)
-		c:SetWidth(r.controlArea:GetWidth())
+		c = UI.Text(r.controlArea, "body", "textMuted", "RIGHT")
+		c:SetPoint("RIGHT", alignRight, 0)
 	end
 	r.controls[kind] = c
 	return c
@@ -39,18 +48,21 @@ function UI.CreateSettingRow(list)
 	r:RegisterForClicks("LeftButtonUp")
 	r.hl = r:CreateTexture(nil, "BACKGROUND")
 	r.hl:SetAllPoints()
-	r.state = r:CreateTexture(nil, "ARTWORK")
-	r.state:SetPoint("TOPLEFT", 0, -6)
-	r.state:SetPoint("BOTTOMLEFT", 0, 6)
-	r.state:SetWidth(3)
+	r.pendingBar = r:CreateTexture(nil, "ARTWORK")
+	r.pendingBar:SetPoint("TOPLEFT", 0, -6)
+	r.pendingBar:SetPoint("BOTTOMLEFT", 0, 6)
+	r.pendingBar:SetWidth(3)
+	UI.SetColor(r.pendingBar, "warning")
+	r.modifiedDot = UI.Icon(r, "dot", 8, "accent")
+	r.modifiedDot:SetPoint("TOPLEFT", 10, -15)
 	r.divider = UI.Line(r, "border", true)
-	r.divider:SetPoint("BOTTOMLEFT", 12, 0)
-	r.divider:SetPoint("BOTTOMRIGHT", -12, 0)
+	r.divider:SetPoint("BOTTOMLEFT", 16, 0)
+	r.divider:SetPoint("BOTTOMRIGHT", -16, 0)
 
 	r.fav = CreateFrame("Button", nil, r)
-	r.fav:SetSize(18, 18)
-	r.fav:SetPoint("LEFT", 10, 0)
-	r.fav.icon = UI.Icon(r.fav, "auctionhouse-icon-favorite-off", 13, "textDim")
+	r.fav:SetSize(20, 20)
+	r.fav:SetPoint("TOPLEFT", 20, -9)
+	r.fav.icon = UI.Icon(r.fav, "star", 14, "textDim")
 	r.fav.icon:SetPoint("CENTER")
 	r.fav:SetScript("OnClick", function()
 		local id = r.def and r.def.id
@@ -58,68 +70,111 @@ function UI.CreateSettingRow(list)
 		ns.db.favorites[id] = (not ns.db.favorites[id]) or nil
 		ns.Callbacks:Fire("FavoritesChanged")
 	end)
-	UI.AttachTooltip(r.fav, function() return ns.db.favorites[r.def.id] and "Remove from favorites" or "Add to favorites" end)
+	r.fav:SetScript("OnEnter", function(self)
+		r.hovered = true
+		r:UpdateHighlight()
+		UI.ShowTooltip(self, ns.db.favorites[r.def.id] and "Remove from favorites" or "Add to favorites")
+	end)
+	r.fav:SetScript("OnLeave", function() UI.HideTooltip(); r:CheckHover() end)
 
-	r.name = UI.Text(r, 13, "text")
-	r.name:SetPoint("TOPLEFT", 34, -9)
+	r.name = UI.Text(r, "settingName", "text")
+	r.name:SetPoint("TOPLEFT", TEXT_LEFT, -12)
+	r.technical = UI.Text(r, "technical", "textDim")
 	r.badges = {}
 	for i = 1, 3 do
 		local b = UI.CreateBadge(r)
 		b:Hide()
 		r.badges[i] = b
 	end
+	r.lock = UI.Icon(r, "lock", 12, "warning")
+	r.lock:SetPoint("TOPLEFT", TEXT_LEFT, -33)
 
-	r.reset = UI.CreateIconButton(r, "uitools-icon-refresh", 12, nil)
+	r.reset = UI.CreateIconButton(r, "reset", 14, nil)
 	r.reset:SetPoint("RIGHT", -8, 0)
 	UI.AttachTooltip(r.reset, function()
 		local def = r.def
 		local d = def and Providers:GetDefault(def)
 		return L.RESET, d ~= nil and ("Factory default: " .. Values.Format(def, d)) or "No known default"
 	end)
+	r.reset:HookScript("OnEnter", function() r.hovered = true; r:UpdateHighlight() end)
+	r.reset:HookScript("OnLeave", function() r:CheckHover() end)
 
 	r.controlArea = CreateFrame("Frame", nil, r)
-	r.controlArea:SetSize(Theme.metrics.controlWidth, 24)
-	r.controlArea:SetPoint("RIGHT", r.reset, "LEFT", -8, 0)
+	r.controlArea:SetHeight(28)
+	r.controlArea:SetPoint("RIGHT", -RIGHT_RESERVE, 0)
 	r.controls = {}
 
-	-- Text spans from the star to the control area. Both anchors share the same top edge so the
-	-- font string's height comes from its text (a plain RIGHT anchor would over-constrain it).
-	local textRight = -(8 + 22 + 8 + Theme.metrics.controlWidth + 16)
-	r.desc = UI.Text(r, 11, "textMuted")
-	r.desc:SetPoint("TOPLEFT", 34, -29)
-	r.desc:SetPoint("TOPRIGHT", r, "TOPRIGHT", textRight, -29)
-	r.name:SetPoint("TOPRIGHT", r, "TOPRIGHT", textRight, -9)
+	r.desc = UI.Text(r, "settingDesc", "textMuted")
+	r.desc:SetWordWrap(true)
+	r.desc:SetMaxLines(2)
+	r.desc:SetJustifyV("TOP")
+	r.desc:SetSpacing(2)
 
-	r:SetScript("OnEnter", function(self) self.hovered = true; self:UpdateHighlight() end)
-	r:SetScript("OnLeave", function(self) self.hovered = false; self:UpdateHighlight() end)
+	r:SetScript("OnEnter", function(self)
+		self.hovered = true
+		self:UpdateHighlight()
+		-- Full description when the visible text had to be shortened.
+		if self.def and self.desc:IsTruncated() then
+			UI.ShowTooltip(self, self.def.name, self.def.description, "ANCHOR_CURSOR")
+		end
+	end)
+	r:SetScript("OnLeave", function(self)
+		UI.HideTooltip()
+		self:CheckHover()
+	end)
 	r:SetScript("OnClick", function(self)
 		if self.page and self.def then self.page:Select(self.def.id) end
 	end)
+	r:SetScript("OnDoubleClick", function(self)
+		if self.page and self.def then
+			self.page:Select(self.def.id)
+			self.page.window:SetInspectorShown(true)
+		end
+	end)
+
+	-- Hover persists while the cursor is over a child (star, reset, controls).
+	function r:CheckHover()
+		self.hovered = self:IsMouseOver() and true or false
+		self:UpdateHighlight()
+	end
 
 	function r:UpdateHighlight()
 		local selected = self.page and self.def and self.page.selectedId == self.def.id
 		if selected then
-			UI.SetColor(self.hl, Theme.colors.rowSelected)
+			UI.SetColor(self.hl, "rowSelected")
 			self.hl:Show()
 		elseif self.hovered then
-			UI.SetColor(self.hl, Theme.colors.rowHover)
+			UI.SetColor(self.hl, "rowHover")
 			self.hl:Show()
 		else
 			self.hl:Hide()
 		end
+		local fav = self.def and ns.db.favorites[self.def.id]
+		self.fav:SetAlpha((fav or self.hovered or selected) and 1 or 0)
 	end
 	return r
 end
 
-local function SetBadges(r, list)
-	local x = nil
+local function LayoutTitleLine(r, badges)
+	-- Technical name (optional), then badges, after the name.
+	local anchor, gap = r.name, 8
+	local nameWidth = math.min(r.name:GetStringWidth(), r.name:GetWidth() or 9999)
+	if r.technical:IsShown() then
+		r.technical:ClearAllPoints()
+		r.technical:SetPoint("LEFT", r.name, "LEFT", nameWidth + 8, 0)
+		anchor, gap = r.technical, 8
+	end
 	for i, b in ipairs(r.badges) do
-		local entry = list[i]
+		local entry = badges[i]
 		if entry then
 			b:Set(entry[1], entry[2])
 			b:ClearAllPoints()
 			if i == 1 then
-				b:SetPoint("LEFT", r.name, "LEFT", math.min(r.name:GetStringWidth(), r.name:GetWidth() or 9999) + 8, 0)
+				if anchor == r.name then
+					b:SetPoint("LEFT", r.name, "LEFT", nameWidth + gap, 0)
+				else
+					b:SetPoint("LEFT", anchor, "LEFT", math.min(anchor:GetStringWidth(), 220) + gap, 0)
+				end
 			else
 				b:SetPoint("LEFT", r.badges[i - 1], "RIGHT", 4, 0)
 			end
@@ -141,23 +196,28 @@ function UI.UpdateSettingRow(r, item, list)
 	local current = available and Providers:Get(def) or nil
 	local modified = current ~= nil and default ~= nil and not Values.Equal(def, current, default)
 	local editable = available and not restriction
+	local restricted = available and restriction and def.control ~= "readonly"
 
-	-- Name, favorite, indicator ------------------------------------------------
+	-- Responsive column: same width on every row for a given list width.
+	local controlWidth, sliderWidth = Theme.ControlWidth(list:GetWidth())
+	r.controlArea:SetWidth(controlWidth)
+	local textRight = -(RIGHT_RESERVE + controlWidth + 16)
+
+	-- Name, technical name, indicators -----------------------------------------------
+	r.name:ClearAllPoints()
+	r.name:SetPoint("TOPLEFT", TEXT_LEFT, -12)
+	r.name:SetPoint("TOPRIGHT", r, "TOPRIGHT", textRight, -12)
 	r.name:SetText(def.name)
 	UI.SetTextColor(r.name, available and "text" or "textDim")
+	local showTech = ns.db.ui.showTechnical and def.technical and def.technical ~= ""
+	r.technical:SetShown(showTech and true or false)
+	if showTech then r.technical:SetText(def.technical) end
 	local fav = ns.db.favorites[def.id]
-	UI.SetIcon(r.fav.icon, fav and "auctionhouse-icon-favorite" or "auctionhouse-icon-favorite-off", fav and "warning" or "textDim")
-	if isPending then
-		UI.SetColor(r.state, Theme.colors.warning)
-		r.state:Show()
-	elseif modified then
-		UI.SetColor(r.state, Theme.colors.accent)
-		r.state:Show()
-	else
-		r.state:Hide()
-	end
+	UI.SetIcon(r.fav.icon, fav and "star-filled" or "star", fav and "warning" or "textDim")
+	r.pendingBar:SetShown(isPending)
+	r.modifiedDot:SetShown(modified and not isPending)
 
-	-- Badges -------------------------------------------------------------------
+	-- Badges ---------------------------------------------------------------------------
 	local badges = {}
 	if isPending then badges[#badges + 1] = { "PENDING", "warning" } end
 	local status = def.statusSummary
@@ -166,9 +226,13 @@ function UI.UpdateSettingRow(r, item, list)
 	end
 	if APPLY_BADGES[def.apply] then badges[#badges + 1] = { APPLY_BADGES[def.apply], "info" } end
 	if def.classification == "hidden" and #badges < 3 then badges[#badges + 1] = { "HIDDEN", "textMuted" } end
-	SetBadges(r, badges)
+	LayoutTitleLine(r, badges)
 
-	-- Description / error / restriction -------------------------------------------
+	-- Description / error / restriction --------------------------------------------------
+	r.lock:SetShown(restricted and true or false)
+	r.desc:ClearAllPoints()
+	r.desc:SetPoint("TOPLEFT", TEXT_LEFT + (restricted and 17 or 0), -31)
+	r.desc:SetPoint("TOPRIGHT", r, "TOPRIGHT", textRight, -31)
 	local err = page and page.errors[def.id]
 	if err then
 		r.desc:SetText(err)
@@ -176,7 +240,7 @@ function UI.UpdateSettingRow(r, item, list)
 	elseif not available then
 		r.desc:SetText(unavailableReason or "Unavailable on this client.")
 		UI.SetTextColor(r.desc, "textDim")
-	elseif restriction and def.control ~= "readonly" then
+	elseif restricted then
 		r.desc:SetText(restriction)
 		UI.SetTextColor(r.desc, "warning")
 	else
@@ -184,10 +248,8 @@ function UI.UpdateSettingRow(r, item, list)
 		UI.SetTextColor(r.desc, "textMuted")
 	end
 
-	-- Control ----------------------------------------------------------------------
+	-- Control ------------------------------------------------------------------------------
 	local kind = def.control
-	-- Decide which control this row shows, and hide only the others. Hiding and re-showing
-	-- the active control on every refresh would cancel a slider drag in progress.
 	local active
 	if not available or kind == "readonly" or kind == "number" or kind == "text" then
 		active = "value"
@@ -210,35 +272,34 @@ function UI.UpdateSettingRow(r, item, list)
 		Changes:Stage(def, value)
 	end
 
-	if not available or kind == "readonly" or kind == "number" or kind == "text" then
+	if active == "value" then
 		local c = EnsureControl(r, "value")
-		c:SetText(current ~= nil and Values.Format(def, current) or "—")
+		local text = current ~= nil and Values.Format(def, current) or "—"
+		if available and kind == "slider" then text = text .. "  (range unavailable)" end
+		c:SetText(text)
 		c:Show()
-	elseif kind == "slider" then
+	elseif active == "slider" then
 		local c = EnsureControl(r, "slider")
 		local lo, hi, step = Providers:GetRange(def)
-		if lo then
-			c:Setup(def, lo, hi, step, commit, function(message)
-				page.errors[def.id] = message and UI.FormatError(message) or nil
-				r.desc:SetText(message and page.errors[def.id] or def.description)
-				UI.SetTextColor(r.desc, message and "error" or "textMuted")
-			end)
-			c:SetValue(effective)
-			c:SetEnabled(editable)
-			c:Show()
-		else
-			local v = EnsureControl(r, "value")
-			v:SetText((current ~= nil and Values.Format(def, current) or "—") .. "  (range unavailable)")
-			v:Show()
-		end
-	elseif kind == "toggle" then
+		c:SetSliderWidth(sliderWidth)
+		c:SetUnit(def.suffix and ns.Util.Trim(def.suffix) or "")
+		c:Setup(def, lo, hi, step, commit, function(message)
+			page.errors[def.id] = message and UI.FormatError(message) or nil
+			r.desc:SetText(message and page.errors[def.id] or def.description)
+			UI.SetTextColor(r.desc, message and "error" or "textMuted")
+		end)
+		c:SetValue(effective)
+		c:SetEnabled(editable)
+		c:Show()
+	elseif active == "toggle" then
 		local c = EnsureControl(r, "toggle")
 		c:SetChecked(effective and true or false)
 		c:SetToggleEnabled(editable)
 		c.onToggle = commit
 		c:Show()
-	elseif kind == "dropdown" then
+	elseif active == "dropdown" then
 		local c = EnsureControl(r, "dropdown")
+		c:SetWidth(sliderWidth + 10 + M.editWidth)
 		c:SetOptions(Providers:GetOptions(def))
 		c:SetValue(effective)
 		c:SetDropdownEnabled(editable)
@@ -246,10 +307,11 @@ function UI.UpdateSettingRow(r, item, list)
 		c:Show()
 	end
 
-	-- Reset ---------------------------------------------------------------------------
-	local canReset = editable and kind ~= "readonly" and default ~= nil and not Values.Equal(def, effective, default)
-	r.reset:SetEnabled(canReset)
-	r.reset:SetShown(kind ~= "readonly" and def.provider ~= "diagnostic")
+	-- Reset: only offered when it would change something ------------------------------------
+	local canReset = editable and kind ~= "readonly" and def.provider ~= "diagnostic"
+		and default ~= nil and not Values.Equal(def, effective, default)
+	r.reset:SetShown(canReset and true or false)
+	r.reset:SetEnabled(canReset and true or false)
 	r.reset:SetScript("OnClick", function()
 		page.errors[def.id] = nil
 		Changes:StageDefault(def)

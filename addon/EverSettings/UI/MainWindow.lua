@@ -1,5 +1,6 @@
--- Main window: header (title, profile, search, help, close), sidebar navigation, page area,
--- collapsible inspector and footer (pending changes, discard, reset category, undo/redo, apply).
+-- Main window: header (identity, profile, search, Details, help, close), sidebar navigation,
+-- page area, optional resizable inspector ("Details") and footer (pending changes, undo/redo,
+-- discard, reset category, apply).
 local _, ns = ...
 
 local Theme, UI, L, Util = ns.Theme, ns.UI, ns.L, ns.Util
@@ -9,68 +10,96 @@ local M = Theme.metrics
 local Window = {}
 ns.Window = Window
 
+local MIN_CONTENT_WIDTH = 440 -- the settings list never gets narrower than this
+
+-- Sidebar -------------------------------------------------------------------------------
 local function CreateNavGroup(list)
 	local f = CreateFrame("Frame", nil, list)
-	f.label = UI.Text(f, 10, "textDim")
+	f.line = UI.Line(f, "border", true)
+	f.line:SetPoint("TOPLEFT", 14, -6)
+	f.line:SetPoint("TOPRIGHT", -14, -6)
+	f.label = UI.Text(f, "overline", "textDim")
 	f.label:SetPoint("BOTTOMLEFT", 16, 6)
 	return f
 end
-local function UpdateNavGroup(f, item) f.label:SetText(item.label) end
+local function UpdateNavGroup(f, item)
+	f.label:SetText(item.label)
+	f.line:SetShown(not item.first)
+end
 
 local function CreateNavItem(list)
 	local b = CreateFrame("Button", nil, list)
 	b.hl = b:CreateTexture(nil, "BACKGROUND")
-	b.hl:SetAllPoints()
+	b.hl:SetPoint("TOPLEFT", 8, -1)
+	b.hl:SetPoint("BOTTOMRIGHT", -8, 1)
 	b.bar = b:CreateTexture(nil, "ARTWORK")
-	b.bar:SetPoint("TOPLEFT", 0, -4)
-	b.bar:SetPoint("BOTTOMLEFT", 0, 4)
+	b.bar:SetPoint("TOPLEFT", 8, -5)
+	b.bar:SetPoint("BOTTOMLEFT", 8, 5)
 	b.bar:SetWidth(3)
-	UI.SetColor(b.bar, Theme.colors.accent)
-	b.label = UI.Text(b, 12, "text")
-	b.label:SetPoint("LEFT", 16, 0)
-	b.label:SetPoint("RIGHT", -40, 0)
-	b.count = UI.Text(b, 10, "textDim", "RIGHT")
-	b.count:SetPoint("RIGHT", -12, 0)
+	UI.SetColor(b.bar, "accent")
+	b.icon = UI.Icon(b, "graphics", 16, "textMuted")
+	b.icon:SetPoint("LEFT", 20, 0)
+	b.label = UI.Text(b, "nav", "text")
+	b.label:SetPoint("LEFT", b.icon, "RIGHT", 10, 0)
+	b.label:SetPoint("RIGHT", -44, 0)
+	b.count = UI.Text(b, "meta", "textDim", "RIGHT")
+	b.count:SetPoint("RIGHT", -18, 0)
+	b.count:SetWidth(30)
 	b:SetScript("OnClick", function(self) Window:Navigate(self.key) end)
-	b:SetScript("OnEnter", function(self) if not self.selected then UI.SetColor(self.hl, Theme.colors.rowHover); self.hl:Show() end end)
-	b:SetScript("OnLeave", function(self) if not self.selected then self.hl:Hide() end end)
+	b:SetScript("OnEnter", function(self) self.hovered = true; self:UpdateVisual() end)
+	b:SetScript("OnLeave", function(self) self.hovered = false; self:UpdateVisual() end)
+	function b:UpdateVisual()
+		if self.selected then
+			UI.SetColor(self.hl, "navSelected")
+			self.hl:Show()
+		elseif self.hovered then
+			UI.SetColor(self.hl, "rowHover")
+			self.hl:Show()
+		else
+			self.hl:Hide()
+		end
+		self.bar:SetShown(self.selected)
+		UI.SetFont(self.label, self.selected and "navActive" or "nav", "text")
+		UI.SetTextColor(self.label, self.selected and "text" or ((self.hovered and "text") or (self.dim and "textDim" or "textMuted")))
+		UI.SetIconColor(self.icon, self.selected and "accent" or (self.dim and "textDim" or "textMuted"))
+		UI.SetTextColor(self.count, self.selected and "textMuted" or "textDim")
+	end
 	return b
 end
 
 local function UpdateNavItem(b, item)
-	b.key = item.key
+	b.key, b.dim = item.key, item.dim
 	b.label:SetText(item.label)
 	b.count:SetText(item.count and tostring(item.count) or "")
+	UI.SetIcon(b.icon, item.icon, "textMuted")
 	b.selected = Window.currentKey == item.key
-	b.bar:SetShown(b.selected)
-	if b.selected then
-		UI.SetColor(b.hl, Theme.colors.rowSelected)
-		b.hl:Show()
-	else
-		b.hl:Hide()
-	end
-	UI.SetTextColor(b.label, b.selected and "text" or (item.dim and "textDim" or "textMuted"))
+	b:UpdateVisual()
 end
 
 function Window:BuildNavItems()
-	local items = { { type = "group", label = "LIBRARY" } }
+	local items = { { type = "group", label = "LIBRARY", first = true } }
 	local favCount = Util.Count(ns.db.favorites)
-	items[#items + 1] = { type = "item", key = "favorites", label = L.FAVORITES, count = favCount > 0 and favCount or nil }
-	items[#items + 1] = { type = "item", key = "modified", label = L.MODIFIED }
-	items[#items + 1] = { type = "item", key = "recent", label = L.RECENT }
-	items[#items + 1] = { type = "item", key = "all", label = L.ALL_SETTINGS, count = #Registry.ordered }
+	items[#items + 1] = { type = "item", key = "favorites", label = L.FAVORITES, icon = "favorites", count = favCount > 0 and favCount or nil }
+	items[#items + 1] = { type = "item", key = "modified", label = L.MODIFIED, icon = "modified" }
+	items[#items + 1] = { type = "item", key = "recent", label = L.RECENT, icon = "recent" }
+	items[#items + 1] = { type = "item", key = "all", label = L.ALL_SETTINGS, icon = "all", count = #Registry.ordered }
 	items[#items + 1] = { type = "group", label = "CATEGORIES" }
 	for _, cat in ipairs(ns.Categories.list) do
 		local n = Registry:CountCategory(cat.id)
-		items[#items + 1] = { type = "item", key = "category:" .. cat.id, label = cat.name, count = n > 0 and n or nil, dim = n == 0 }
+		local key = "category:" .. cat.id
+		if n > 0 or not ns.db.ui.hideEmpty or self.currentKey == key then
+			items[#items + 1] = { type = "item", key = key, label = cat.name, icon = cat.id, count = n > 0 and n or nil, dim = n == 0 }
+		end
 	end
 	items[#items + 1] = { type = "group", label = "TOOLS" }
-	items[#items + 1] = { type = "item", key = "browser", label = L.CVAR_BROWSER, count = ns.CVarCatalog and ns.CVarCatalog.meta.numCVars }
-	items[#items + 1] = { type = "item", key = "profiles", label = L.PROFILES }
-	items[#items + 1] = { type = "item", key = "diagnostics", label = L.DIAGNOSTICS }
+	items[#items + 1] = { type = "item", key = "browser", label = L.CVAR_BROWSER, icon = "browser", count = ns.CVarCatalog and ns.CVarCatalog.meta.numCVars }
+	items[#items + 1] = { type = "item", key = "profiles", label = L.PROFILES, icon = "profiles" }
+	items[#items + 1] = { type = "item", key = "diagnostics", label = L.DIAGNOSTICS, icon = "diagnostics" }
+	items[#items + 1] = { type = "item", key = "preferences", label = L.PREFERENCES, icon = "preferences" }
 	return items
 end
 
+-- Construction ----------------------------------------------------------------------------
 function Window:Create()
 	if self.frame then return self.frame end
 	local db = ns.db.window
@@ -87,14 +116,104 @@ function Window:Create()
 	elseif f.SetMinResize then
 		f:SetMinResize(M.minWidth, M.minHeight)
 	end
-	f:SetSize(math.max(M.minWidth, db.width or 1060), math.max(M.minHeight, db.height or 680))
+	f:SetScale(self:ClampScale(db.scale))
+	f:SetSize(math.max(M.minWidth, db.width or 1100), math.max(M.minHeight, db.height or 700))
 	f:SetPoint(db.point or "CENTER", UIParent, db.point or "CENTER", db.x or 0, db.y or 0)
 	UI.Background(f, "window")
 	UI.Border(f, "borderStrong", "OVERLAY")
 	f:Hide()
 	tinsert(UISpecialFrames, "EverSettingsMainFrame")
 
-	-- Header --------------------------------------------------------------------
+	self:CreateHeader(f)
+	self:CreateFooter(f)
+
+	-- Sidebar
+	local sidebar = CreateFrame("Frame", nil, f)
+	sidebar:SetPoint("TOPLEFT", f.header, "BOTTOMLEFT", 0, 0)
+	sidebar:SetPoint("BOTTOMLEFT", f.footer, "TOPLEFT", 0, 0)
+	sidebar:SetWidth(M.sidebarWidth)
+	UI.Background(sidebar, "sidebar")
+	local sl = UI.Line(sidebar, "border", false)
+	sl:SetPoint("TOPRIGHT")
+	sl:SetPoint("BOTTOMRIGHT")
+	local nav = UI.CreateScrollList(sidebar)
+	nav:SetPoint("TOPLEFT", 0, -4)
+	nav:SetPoint("BOTTOMRIGHT", -1, 6)
+	nav:RegisterType("group", 32, CreateNavGroup, UpdateNavGroup)
+	nav:RegisterType("item", M.navItemHeight, CreateNavItem, UpdateNavItem)
+	f.sidebar, f.nav = sidebar, nav
+
+	-- Inspector ("Details") with a drag handle on its left edge to change its width.
+	local inspector = UI.CreateInspector(f, self)
+	inspector:SetPoint("TOPRIGHT", f.header, "BOTTOMRIGHT", 0, 0)
+	inspector:SetPoint("BOTTOMRIGHT", f.footer, "TOPRIGHT", 0, 0)
+	f.inspector = inspector
+	local grip = CreateFrame("Frame", nil, inspector)
+	grip:SetPoint("TOPLEFT", -3, 0)
+	grip:SetPoint("BOTTOMLEFT", -3, 0)
+	grip:SetWidth(7)
+	grip:EnableMouse(true)
+	grip.line = grip:CreateTexture(nil, "OVERLAY")
+	grip.line:SetPoint("TOP")
+	grip.line:SetPoint("BOTTOM")
+	grip.line:SetWidth(2)
+	UI.SetColor(grip.line, "accent")
+	grip.line:Hide()
+	grip:SetScript("OnEnter", function(self) self.line:Show() end)
+	grip:SetScript("OnLeave", function(self) if not self.dragging then self.line:Hide() end end)
+	grip:SetScript("OnMouseDown", function(self)
+		self.dragging = true
+		self:SetScript("OnUpdate", function()
+			local x = GetCursorPosition() / f:GetEffectiveScale()
+			local right = inspector:GetRight()
+			if right then Window:SetInspectorWidth(right - x) end
+		end)
+	end)
+	grip:SetScript("OnMouseUp", function(self)
+		self.dragging = false
+		self:SetScript("OnUpdate", nil)
+		if not self:IsMouseOver() then self.line:Hide() end
+	end)
+	f.inspectorGrip = grip
+
+	-- Content
+	local content = CreateFrame("Frame", nil, f)
+	UI.Background(content, "content")
+	f.content = content
+
+	self.pages = {
+		settings = UI.CreateSettingsPage(content, self),
+		browser = UI.CreateCVarBrowserPage(content, self),
+		profiles = UI.CreateProfilesPage(content, self),
+		diagnostics = UI.CreateDiagnosticsPage(content, self),
+		preferences = UI.CreatePreferencesPage(content, self),
+	}
+	for _, page in pairs(self.pages) do
+		page:SetAllPoints(content)
+		page:Hide()
+	end
+
+	-- Window resize grip
+	local resize = CreateFrame("Button", nil, f)
+	resize:SetSize(16, 16)
+	resize:SetPoint("BOTTOMRIGHT", -2, 2)
+	resize:SetFrameLevel(f.footer:GetFrameLevel() + 5)
+	resize.icon = UI.Icon(resize, "uitools-icon-window-resize", 12, "textDim")
+	resize.icon:SetPoint("CENTER")
+	resize:SetScript("OnMouseDown", function() f:StartSizing("BOTTOMRIGHT") end)
+	resize:SetScript("OnMouseUp", function() f:StopMovingOrSizing(); Window:SavePosition() end)
+
+	f:SetScript("OnShow", function() Window:OnShow() end)
+	f:SetScript("OnHide", function() Window:OnHide() end)
+	f:SetScript("OnSizeChanged", function() Window:Layout() end)
+
+	self:SetInspectorShown(db.inspector == true)
+	self:RegisterCallbacks()
+	self:Layout()
+	return f
+end
+
+function Window:CreateHeader(f)
 	local header = CreateFrame("Frame", nil, f)
 	header:SetPoint("TOPLEFT", 1, -1)
 	header:SetPoint("TOPRIGHT", -1, -1)
@@ -109,35 +228,24 @@ function Window:Create()
 	header:SetScript("OnDragStop", function() f:StopMovingOrSizing(); Window:SavePosition() end)
 	f.header = header
 
-	local title = UI.Text(header, 15, "text")
-	title:SetPoint("LEFT", 16, 0)
+	-- Identity: accent tile with the logo glyph, name and version.
+	local tile = UI.Icon(header, "rounded", 30, "accentDim")
+	tile:SetPoint("LEFT", 14, 0)
+	local logo = UI.Icon(header, "logo", 18, "accent")
+	logo:SetPoint("CENTER", tile, "CENTER")
+	local title = UI.Text(header, "windowTitle", "text")
+	title:SetPoint("LEFT", tile, "RIGHT", 10, 0)
 	title:SetText(L.ADDON_TITLE)
-	local version = UI.Text(header, 10, "textDim")
-	version:SetPoint("LEFT", title, "RIGHT", 8, -1)
-	version:SetText(ns.version)
+	local version = UI.CreateBadge(header)
+	version:SetPoint("LEFT", title, "RIGHT", 8, 0)
+	version:Set(ns.version, "textMuted")
 
-	local close = UI.CreateIconButton(header, "uitools-icon-close", 12, L.CLOSE)
-	close:SetPoint("RIGHT", -8, 0)
-	close:SetScript("OnClick", function() f:Hide() end)
-	local inspectorToggle = UI.CreateIconButton(header, "uitools-icon-external-window", 13, L.INSPECTOR)
-	inspectorToggle:SetPoint("RIGHT", close, "LEFT", -2, 0)
-	inspectorToggle:SetScript("OnClick", function() Window:SetInspectorShown(not ns.db.window.inspector) end)
-	f.inspectorToggle = inspectorToggle
-	local help = UI.CreateIconButton(header, "uitools-icon-settings", 13, L.HELP)
-	help:SetPoint("RIGHT", inspectorToggle, "LEFT", -2, 0)
-	help:SetScript("OnClick", function() UI.Alert("EverSettings " .. ns.version, L.HELP_TEXT) end)
-
-	local search = UI.CreateSearchBox(header, 240, L.SEARCH_PLACEHOLDER, function(text)
-		Window:OnSearch(text)
-	end)
-	search:SetPoint("RIGHT", help, "LEFT", -10, 0)
-	f.search = search
-
-	local profileLabel = UI.Text(header, 11, "textDim", "RIGHT")
-	local profileDropdown = UI.CreateDropdown(header, 170)
-	profileDropdown:SetPoint("LEFT", version, "RIGHT", 90, 1)
-	profileLabel:SetPoint("RIGHT", profileDropdown, "LEFT", -8, 0)
+	-- Profile selector and management.
+	local profileLabel = UI.Text(header, "small", "textMuted", "RIGHT")
+	profileLabel:SetPoint("LEFT", version, "RIGHT", 22, 0)
 	profileLabel:SetText("Profile")
+	local profileDropdown = UI.CreateDropdown(header, 190)
+	profileDropdown:SetPoint("LEFT", profileLabel, "RIGHT", 8, 0)
 	profileDropdown.onSelect = function(value)
 		if value == "__manage" then
 			Window:Navigate("profiles")
@@ -151,11 +259,29 @@ function Window:Create()
 		Window:UpdateProfileDropdown()
 	end
 	f.profileDropdown = profileDropdown
-	local manage = UI.CreateButton(header, L.PROFILES, "ghost", 70, 24)
+	local manage = UI.CreateButton(header, "Manage", "ghost", 86, 28, "profiles")
 	manage:SetPoint("LEFT", profileDropdown, "RIGHT", 6, 0)
 	manage:SetScript("OnClick", function() Window:Navigate("profiles") end)
+	f.manageButton = manage
 
-	-- Footer ----------------------------------------------------------------------
+	-- Right side: close, help, Details, search.
+	local close = UI.CreateIconButton(header, "close", 14, L.CLOSE)
+	close:SetPoint("RIGHT", -10, 0)
+	close:SetScript("OnClick", function() f:Hide() end)
+	local help = UI.CreateIconButton(header, "help", 16, L.HELP)
+	help:SetPoint("RIGHT", close, "LEFT", -2, 0)
+	help:SetScript("OnClick", function() UI.Alert("EverSettings " .. ns.version, L.HELP_TEXT) end)
+	local details = UI.CreateButton(header, L.DETAILS, "secondary", 96, 30, "details")
+	details:SetPoint("RIGHT", help, "LEFT", -8, 0)
+	details:SetScript("OnClick", function() Window:SetInspectorShown(not ns.db.window.inspector, true) end)
+	UI.AttachTooltip(details, L.DETAILS, "Show or hide the panel with the full description, values, sources and verification status of the selected setting. Double-click a setting to open it.")
+	f.detailsButton = details
+	local search = UI.CreateSearchBox(header, 300, L.SEARCH_PLACEHOLDER, function(text) Window:OnSearch(text) end)
+	search:SetPoint("RIGHT", details, "LEFT", -12, 0)
+	f.search = search
+end
+
+function Window:CreateFooter(f)
 	local footer = CreateFrame("Frame", nil, f)
 	footer:SetPoint("BOTTOMLEFT", 1, 1)
 	footer:SetPoint("BOTTOMRIGHT", -1, 1)
@@ -166,20 +292,25 @@ function Window:Create()
 	fl:SetPoint("TOPRIGHT")
 	f.footer = footer
 
-	f.apply = UI.CreateButton(footer, L.APPLY, "primary", 100, 28)
+	f.apply = UI.CreateButton(footer, L.APPLY, "primary", 112, 32)
 	f.apply:SetPoint("RIGHT", -24, 0)
-	f.resetCategory = UI.CreateButton(footer, L.RESET_CATEGORY, "secondary", 120, 28)
+	f.resetCategory = UI.CreateButton(footer, L.RESET_CATEGORY, "secondary", 128, 32)
 	f.resetCategory:SetPoint("RIGHT", f.apply, "LEFT", -8, 0)
-	f.discard = UI.CreateButton(footer, L.DISCARD, "secondary", 90, 28)
+	f.discard = UI.CreateButton(footer, L.DISCARD, "secondary", 96, 32)
 	f.discard:SetPoint("RIGHT", f.resetCategory, "LEFT", -8, 0)
-	f.redo = UI.CreateButton(footer, L.REDO, "ghost", 60, 28)
+	f.redo = UI.CreateButton(footer, L.REDO, "ghost", 64, 32)
 	f.redo:SetPoint("RIGHT", f.discard, "LEFT", -16, 0)
-	f.undo = UI.CreateButton(footer, L.UNDO, "ghost", 60, 28)
+	f.undo = UI.CreateButton(footer, L.UNDO, "ghost", 64, 32)
 	f.undo:SetPoint("RIGHT", f.redo, "LEFT", -4, 0)
-	f.pendingText = UI.Text(footer, 12, "textMuted")
-	f.pendingText:SetPoint("LEFT", 16, 0)
-	f.statusText = UI.Text(footer, 11, "textMuted")
-	f.statusText:SetPoint("LEFT", f.pendingText, "RIGHT", 16, 0)
+
+	f.pendingPill = CreateFrame("Frame", nil, footer)
+	f.pendingPill:SetPoint("LEFT", 16, 0)
+	f.pendingPill:SetHeight(26)
+	f.pendingPill.bg = UI.Background(f.pendingPill, "warningDim")
+	f.pendingText = UI.Text(f.pendingPill, "label", "textMuted")
+	f.pendingText:SetPoint("LEFT", 10, 0)
+	f.statusText = UI.Text(footer, "small", "textMuted")
+	f.statusText:SetPoint("LEFT", f.pendingPill, "RIGHT", 14, 0)
 	f.statusText:SetPoint("RIGHT", f.undo, "LEFT", -12, 0)
 
 	f.apply:SetScript("OnClick", function() Window:Apply() end)
@@ -209,78 +340,74 @@ function Window:Create()
 		local report = ns.History:Redo()
 		if report then Window:SetStatus("Redo: " .. Changes:FormatReport(report), "accent") end
 	end)
-
-	-- Sidebar -----------------------------------------------------------------------
-	local sidebar = CreateFrame("Frame", nil, f)
-	sidebar:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, 0)
-	sidebar:SetPoint("BOTTOMLEFT", footer, "TOPLEFT", 0, 0)
-	sidebar:SetWidth(M.sidebarWidth)
-	UI.Background(sidebar, "sidebar")
-	local sl = UI.Line(sidebar, "border", false)
-	sl:SetPoint("TOPRIGHT")
-	sl:SetPoint("BOTTOMRIGHT")
-	local nav = UI.CreateScrollList(sidebar)
-	nav:SetPoint("TOPLEFT", 0, -6)
-	nav:SetPoint("BOTTOMRIGHT", -1, 6)
-	nav:RegisterType("group", 28, CreateNavGroup, UpdateNavGroup)
-	nav:RegisterType("item", 28, CreateNavItem, UpdateNavItem)
-	f.nav = nav
-
-	-- Inspector -----------------------------------------------------------------------
-	local inspector = UI.CreateInspector(f, self)
-	inspector:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", 0, 0)
-	inspector:SetPoint("BOTTOMRIGHT", footer, "TOPRIGHT", 0, 0)
-	inspector:SetWidth(M.inspectorWidth)
-	f.inspector = inspector
-
-	-- Content -------------------------------------------------------------------------
-	local content = CreateFrame("Frame", nil, f)
-	content:SetPoint("TOPLEFT", sidebar, "TOPRIGHT", 0, 0)
-	content:SetPoint("BOTTOMLEFT", sidebar, "BOTTOMRIGHT", 0, 0)
-	UI.Background(content, "content")
-	f.content = content
-
-	self.pages = {
-		settings = UI.CreateSettingsPage(content, self),
-		browser = UI.CreateCVarBrowserPage(content, self),
-		profiles = UI.CreateProfilesPage(content, self),
-		diagnostics = UI.CreateDiagnosticsPage(content, self),
-	}
-	for _, page in pairs(self.pages) do
-		page:SetAllPoints(content)
-		page:Hide()
-	end
-
-	-- Resize grip -----------------------------------------------------------------------
-	local grip = CreateFrame("Button", nil, f)
-	grip:SetSize(16, 16)
-	grip:SetPoint("BOTTOMRIGHT", -2, 2)
-	grip:SetFrameLevel(footer:GetFrameLevel() + 5)
-	grip.icon = UI.Icon(grip, "uitools-icon-window-resize", 12, "textDim")
-	grip.icon:SetPoint("CENTER")
-	grip:SetScript("OnMouseDown", function() f:StartSizing("BOTTOMRIGHT") end)
-	grip:SetScript("OnMouseUp", function() f:StopMovingOrSizing(); Window:SavePosition() end)
-
-	f:SetScript("OnShow", function() Window:OnShow() end)
-	f:SetScript("OnHide", function() Window:OnHide() end)
-
-	self:SetInspectorShown(ns.db.window.inspector ~= false, true)
-	self:RegisterCallbacks()
-	return f
 end
 
-function Window:SetInspectorShown(shown, silent)
-	ns.db.window.inspector = shown and true or false
+-- Layout ----------------------------------------------------------------------------------
+function Window:ClampScale(scale)
+	return Util.Clamp(tonumber(scale) or 1, M.scaleMin, M.scaleMax)
+end
+
+-- EverSettings' own interface scale, independent of the game's UI scale.
+function Window:SetScale(scale)
+	scale = self:ClampScale(scale)
+	ns.db.window.scale = scale
+	if self.frame then
+		self.frame:SetScale(scale)
+		self:Layout()
+	end
+	return scale
+end
+
+function Window:ClampInspectorWidth(width)
+	local maxByWindow = M.inspectorMax
+	if self.frame then
+		maxByWindow = math.min(M.inspectorMax, self.frame:GetWidth() - M.sidebarWidth - MIN_CONTENT_WIDTH)
+	end
+	return math.floor(Util.Clamp(tonumber(width) or M.inspectorWidth, M.inspectorMin, math.max(M.inspectorMin, maxByWindow)))
+end
+
+function Window:SetInspectorWidth(width)
+	width = self:ClampInspectorWidth(width)
+	ns.db.window.inspectorWidth = width
+	if self.frame then
+		self.frame.inspector:SetPanelWidth(width)
+		self:Layout()
+	end
+	return width
+end
+
+-- userChoice: the player toggled it (remembered across sessions).
+function Window:SetInspectorShown(shown, userChoice)
+	local db = ns.db.window
+	db.inspector = shown and true or false
+	if userChoice then db.inspectorChosen = true end
 	local f = self.frame
-	f.inspector:SetShown(shown)
+	if not f then return end
+	f.inspector:SetShown(db.inspector)
+	if db.inspector then
+		f.inspector:SetPanelWidth(self:ClampInspectorWidth(db.inspectorWidth))
+	end
+	f.detailsButton:SetSelected(db.inspector)
+	self:Layout()
+end
+
+-- Responsive layout for the current window size.
+function Window:Layout()
+	local f = self.frame
+	if not f then return end
+	local width = f:GetWidth()
 	f.content:ClearAllPoints()
 	f.content:SetPoint("TOPLEFT", f.header, "BOTTOMLEFT", M.sidebarWidth, 0)
-	if shown then
+	if ns.db.window.inspector then
+		local w = self:ClampInspectorWidth(ns.db.window.inspectorWidth)
+		if w ~= math.floor(f.inspector:GetWidth()) then f.inspector:SetPanelWidth(w) end
 		f.content:SetPoint("BOTTOMRIGHT", f.inspector, "BOTTOMLEFT", 0, 0)
 	else
 		f.content:SetPoint("BOTTOMRIGHT", f.footer, "TOPRIGHT", 0, 0)
 	end
-	f.inspectorToggle:SetIconColor(shown and "accent" or "textMuted")
+	-- Header: search shrinks first, then the Manage button hides on narrow windows.
+	f.search:SetWidth(Util.Clamp(width - 780, 180, 340))
+	f.manageButton:SetShown(width >= 980)
 end
 
 function Window:SavePosition()
@@ -293,14 +420,16 @@ end
 
 function Window:ResetPosition()
 	local db = ns.db.window
-	db.point, db.x, db.y, db.width, db.height = "CENTER", 0, 0, 1060, 680
+	db.point, db.x, db.y, db.width, db.height = "CENTER", 0, 0, 1100, 700
 	if self.frame then
 		self.frame:ClearAllPoints()
 		self.frame:SetPoint("CENTER")
-		self.frame:SetSize(1060, 680)
+		self.frame:SetSize(1100, 700)
+		self:Layout()
 	end
 end
 
+-- Navigation --------------------------------------------------------------------------------
 function Window:Navigate(key)
 	if not key then return end
 	local f = self.frame
@@ -343,14 +472,18 @@ function Window:OnSearch(text)
 	self.searchNavigating = false
 end
 
+-- Selecting updates the Details panel; it only opens when the player asks (Details button
+-- or double-click), so the list keeps its full width by default.
 function Window:InspectSetting(def)
 	if def then self.frame.inspector:ShowSetting(def) end
-	if def and not ns.db.window.inspector then self:SetInspectorShown(true) end
 end
 
 function Window:InspectCVar(name)
 	self.frame.inspector:ShowCVar(name)
-	if not ns.db.window.inspector then self:SetInspectorShown(true) end
+	if not ns.db.window.inspector and not self.cvarHintShown then
+		self.cvarHintShown = true
+		self:SetStatus("Press Details to see this variable's flags, defaults and snapshot value.", "accent")
+	end
 end
 
 -- Navigate to a setting's category, expand its section and select it.
@@ -382,10 +515,15 @@ function Window:UpdateFooter()
 	if n > 0 then
 		f.pendingText:SetText(L.PENDING_FMT:format(n))
 		UI.SetTextColor(f.pendingText, "warning")
+		f.pendingPill.bg:Show()
+		f.apply:SetText(("%s (%d)"):format(L.APPLY, n))
 	else
 		f.pendingText:SetText(L.PENDING_NONE)
-		UI.SetTextColor(f.pendingText, "textMuted")
+		UI.SetTextColor(f.pendingText, "textDim")
+		f.pendingPill.bg:Hide()
+		f.apply:SetText(L.APPLY)
 	end
+	f.pendingPill:SetWidth(f.pendingText:GetStringWidth() + 20)
 	f.apply:SetEnabled(n > 0)
 	f.discard:SetEnabled(n > 0)
 	f.undo:SetEnabled(ns.History:CanUndo())
@@ -449,22 +587,31 @@ function Window:QueueRefresh(rebuild)
 	end)
 end
 
+function Window:RefreshNav()
+	if self.frame and self.frame:IsShown() then self.frame.nav:SetItems(self:BuildNavItems(), true) end
+end
+
 function Window:RegisterCallbacks()
 	local C = ns.Callbacks
 	C:Register("ValueChanged", self, function() self:QueueRefresh(self.pages.settings.mode == "modified") end)
 	C:Register("PendingChanged", self, function() self:QueueRefresh(self.pages.settings.mode == "modified") end)
 	C:Register("FavoritesChanged", self, function()
 		self:QueueRefresh(self.pages.settings.mode == "favorites")
-		if self.frame:IsShown() then self.frame.nav:SetItems(self:BuildNavItems(), true) end
+		self:RefreshNav()
 	end)
 	C:Register("HistoryChanged", self, function() self:QueueRefresh(self.pages.settings.mode == "recent") end)
 	C:Register("ProfilesChanged", self, function() if self.frame:IsShown() then self:UpdateProfileDropdown() end end)
 	C:Register("ApplyFinished", self, function() self:QueueRefresh(false) end)
+	C:Register("PreferencesChanged", self, function()
+		self:RefreshNav()
+		self:QueueRefresh(true)
+	end)
 end
 
 function Window:OnShow()
 	self:UpdateProfileDropdown()
 	self:UpdateFooter()
+	self:Layout()
 	self:Navigate(self.currentKey or ns.db.ui.lastPage or "category:graphics")
 	-- Poll visible rows for changes that do not raise CVAR_UPDATE (read-only).
 	if C_Timer and C_Timer.NewTicker then

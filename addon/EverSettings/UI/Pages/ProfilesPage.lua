@@ -9,7 +9,7 @@ local function CreateNavRow(list)
 	local b = CreateFrame("Button", nil, list)
 	b.hl = b:CreateTexture(nil, "BACKGROUND")
 	b.hl:SetAllPoints()
-	b.label = UI.Text(b, 12, "text")
+	b.label = UI.Text(b, "body", "text")
 	b.label:SetPoint("LEFT", 14, 0)
 	b.label:SetPoint("RIGHT", -60, 0)
 	b.meta = UI.Text(b, 10, "textDim", "RIGHT")
@@ -36,7 +36,7 @@ end
 
 local function CreateGroupLabel(list)
 	local f = CreateFrame("Frame", nil, list)
-	f.label = UI.Text(f, 10, "textDim")
+	f.label = UI.Text(f, "overline", "textDim")
 	f.label:SetPoint("BOTTOMLEFT", 14, 6)
 	return f
 end
@@ -44,7 +44,7 @@ local function UpdateGroupLabel(f, item) f.label:SetText(item.label) end
 
 local function CreateDiffRow(list)
 	local r = CreateFrame("Frame", nil, list)
-	r.name = UI.Text(r, 12, "text")
+	r.name = UI.Text(r, "label", "text")
 	r.name:SetPoint("LEFT", 12, 0)
 	r.name:SetWidth(220)
 	r.from = UI.Text(r, 11, "textMuted", "RIGHT")
@@ -72,10 +72,10 @@ function UI.CreateProfilesPage(parent, window)
 	local page = CreateFrame("Frame", nil, parent)
 	page.window = window
 
-	page.title = UI.Text(page, 18, "text")
-	page.title:SetPoint("TOPLEFT", Theme.metrics.padding, -14)
+	page.title = UI.Text(page, "pageTitle", "text")
+	page.title:SetPoint("TOPLEFT", Theme.metrics.padding, -16)
 	page.title:SetText(L.PROFILES)
-	page.desc = UI.Text(page, 12, "textMuted")
+	page.desc = UI.Text(page, "pageDesc", "textMuted")
 	page.desc:SetPoint("TOPLEFT", page.title, "BOTTOMLEFT", 0, -6)
 	page.desc:SetText("Profiles and backups contain values for researched settings only. Applying one stages its differences for review.")
 
