@@ -24,7 +24,10 @@ describe("runtime discovery", function()
 		eq(#r.changedDefaults, 1)
 		eq(r.changedDefaults[1].name, "maxFPS")
 		eq(writes(), 0)
-		truthy(ns.db.discovery.byBuild[ns.Compat.buildString])
+		local stored = ns.db.discovery.byBuild[ns.Compat.buildString]
+		truthy(stored)
+		eq(stored.changedDefaults[1].name, "maxFPS", "changed defaults persisted with details")
+		eq(stored.changedDefaults[1].client, "144")
 	end)
 
 	it("counts unclassified variables", function()

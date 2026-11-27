@@ -87,7 +87,7 @@ function Discovery:Persist(result)
 	store.byBuild[result.build] = {
 		time = result.time, numCVars = result.numCVars, numCommands = result.numCommands,
 		new = cap(result.new), missing = cap(result.missing), numNew = #result.new, numMissing = #result.missing,
-		numChangedDefaults = #result.changedDefaults,
+		numChangedDefaults = #result.changedDefaults, changedDefaults = cap(result.changedDefaults),
 	}
 	if previousBuild and previousBuild ~= result.build then
 		store.previousBuild = previousBuild

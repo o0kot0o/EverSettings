@@ -56,7 +56,7 @@ See [COVERAGE.md](COVERAGE.md) (generated). Summary: 1,785 catalog CVars; 418 in
 
 ## In-game verification results
 
-None yet. Pending the plan in [TEST_RESULTS.md](TEST_RESULTS.md#in-game-test-plan-milestone-a-acceptance).
+First result (2026-11-27, owner): **the addon loads, and `/es diag` and runtime discovery work on Forever.** Discovery found 1,800 variables and 77 commands: 16 variables not in the bundled catalog, 1 catalog variable missing from the client list, and 15 defaults that differ from the catalog. 84 of 86 definitions are available; the 2 unavailable are hardware-gated graphics options, as expected. Details in [#1](https://github.com/o0kot0o/EverSettings/issues/1). The rest of the plan in [TEST_RESULTS.md](TEST_RESULTS.md#in-game-test-plan-milestone-a-acceptance) is pending.
 
 ## Offline test results
 

@@ -109,7 +109,7 @@ The mock cannot prove in-game behaviour: layout, fonts, taint, real CVar semanti
 - [x] values_spec.lua :: boolean and enum values :: labels camera shake values set elsewhere as custom and refuses to select it
 - [x] zz_globals_spec.lua :: globals :: the addon only creates its documented globals
 
-## In-game verification: not yet performed
+## In-game verification: started (2026-11-27)
 
 The addon has been deployed to the development machine's Forever install (`_forever_\Interface\AddOns\EverSettings`, 46 files) but has **not** been loaded in game by Claude, which cannot run the game client. Please run this plan and record results here (and per setting in the definitions' `verification` tables).
 
@@ -117,7 +117,7 @@ The addon has been deployed to the development machine's Forever install (`_fore
 
 | # | Check | How | Result |
 |---|---|---|---|
-| 1 | Loads without Lua errors | Enable the addon, log in, check for errors (BugSack or `/console scriptErrors 1`) | pending |
+| 1 | Loads without Lua errors | Enable the addon, log in, check for errors (BugSack or `/console scriptErrors 1`) | loads, `/es diag` runs (2026-11-27); error check pending |
 | 2 | `/es` and `/eversettings` open and close the window | Type both | pending |
 | 3 | No settings changed on install | Before first login with the addon, note a few values (`/dump GetCVar("Gamma")` etc.). After login, `/es diag` shows 0 history entries and the values are unchanged | pending |
 | 4 | Current and default values are correct | Compare a few rows with Blizzard's Options window (Gamma, View Distance, Auto Loot, Max Camera Distance) | pending |
