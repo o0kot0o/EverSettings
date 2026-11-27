@@ -121,7 +121,7 @@ The addon has been deployed to the development machine's Forever install (`_fore
 | 2 | `/es` and `/eversettings` open and close the window | Type both | pending |
 | 3 | No settings changed on install | Before first login with the addon, note a few values (`/dump GetCVar("Gamma")` etc.). After login, `/es diag` shows 0 history entries and the values are unchanged | pending |
 | 4 | Current and default values are correct | Compare a few rows with Blizzard's Options window (Gamma, View Distance, Auto Loot, Max Camera Distance) | pending |
-| 5 | Slider and edit box stay in sync | Drag the Gamma slider, type `1.23` + Enter, type `9` (red, rejected), press Escape | click works and Apply changes Gamma (2026-11-27); Escape restores the value; invalid input flagged (screenshot). Drag fix v2 (IsDraggingThumb, no hide on refresh) needs recheck |
+| 5 | Slider and edit box stay in sync | Drag the Gamma slider, type `1.23` + Enter, type `9` (red, rejected), press Escape | click works and Apply changes Gamma (2026-11-27); **pass**: drag, click, Escape and invalid-input flagging all confirmed in game (2026-11-27) |
 | 6 | Validate and apply | Stage 2–3 changes, Apply, confirm the footer report and that Blizzard's Options shows the new values | pending |
 | 7 | External changes detected | With EverSettings open, change Auto Loot in Blizzard's Options or run `/console autoLootDefault 1`; the row updates | **pass** (Blizzard Options, 2026-11-27) |
 | 8 | Restore originals | Profiles > Safety > Original values > Stage originals > Apply | pending |

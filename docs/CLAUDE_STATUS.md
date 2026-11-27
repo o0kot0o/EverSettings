@@ -48,7 +48,7 @@ _Last updated: 2026-11-27, Milestone A commit (see `git log`)._
 
 ## Known bugs
 
-Fixed: slider could not be dragged (only click-to-position worked); reported in game 2026-11-27, see #1.
+None known. Fixed: slider drag (two attempts; confirmed working in game 2026-11-27, see #1).
 
 ## Settings database coverage
 
