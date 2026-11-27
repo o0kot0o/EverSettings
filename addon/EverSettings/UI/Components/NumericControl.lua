@@ -33,14 +33,30 @@ function UI.CreateNumericControl(parent)
 	s.fill:SetPoint("LEFT", s.track, "LEFT")
 	s.fill:SetHeight(TRACK_HEIGHT)
 	UI.SetColor(s.fill, "accent")
+	-- Extended range: the part of the track beyond the researched normal range is amber,
+	-- and a marker shows where the normal range (Blizzard's slider) ends.
+	s.extTrack = s:CreateTexture(nil, "BACKGROUND", nil, 1)
+	s.extTrack:SetHeight(TRACK_HEIGHT)
+	s.extTrack:SetPoint("RIGHT", s.track, "RIGHT")
+	UI.SetColor(s.extTrack, "warningDim")
+	s.extFill = s:CreateTexture(nil, "BORDER", nil, 1)
+	s.extFill:SetHeight(TRACK_HEIGHT)
+	UI.SetColor(s.extFill, "warning")
+	s.marker = s:CreateTexture(nil, "ARTWORK")
+	s.marker:SetSize(2, 14)
+	UI.SetColor(s.marker, "textMuted")
+	s.extTrack:Hide(); s.extFill:Hide(); s.marker:Hide()
 	local thumb = s:CreateTexture(nil, "OVERLAY")
 	thumb:SetSize(THUMB_SIZE, THUMB_SIZE)
 	UI.SetIcon(thumb, "knob", "text")
 	s:SetThumbTexture(thumb)
 	s.thumb = thumb
 	f.slider = s
-	s:SetScript("OnEnter", function(self) if self:IsEnabled() then UI.SetIconColor(self.thumb, "accentHover") end end)
-	s:SetScript("OnLeave", function(self) UI.SetIconColor(self.thumb, "text") end)
+	s:SetScript("OnEnter", function(self)
+		if self:IsEnabled() then UI.SetIconColor(self.thumb, "accentHover") end
+		if f.extendedNote then UI.ShowTooltip(self, "Extended range", f.extendedNote) end
+	end)
+	s:SetScript("OnLeave", function(self) UI.SetIconColor(self.thumb, "text"); UI.HideTooltip() end)
 
 	-- Edit box and unit ---------------------------------------------------------
 	local e = UI.CreateEditBox(f, M.editWidth, 26, "RIGHT")
@@ -55,8 +71,33 @@ function UI.CreateNumericControl(parent)
 	local function updateFill()
 		local lo, hi = s:GetMinMaxValues()
 		local v = s:GetValue()
-		local pct = (hi > lo) and (v - lo) / (hi - lo) or 0
-		s.fill:SetWidth(math.max(1, f.sliderWidth * Util.Clamp(pct, 0, 1)))
+		local function x(value)
+			local pct = (hi > lo) and (value - lo) / (hi - lo) or 0
+			return f.sliderWidth * Util.Clamp(pct, 0, 1)
+		end
+		local pos = x(v)
+		local normalHi = f.normalHi
+		if normalHi and normalHi < hi then
+			local mx = x(normalHi)
+			s.fill:SetWidth(math.max(1, math.min(pos, mx)))
+			s.marker:ClearAllPoints()
+			s.marker:SetPoint("CENTER", s.track, "LEFT", mx, 0)
+			s.extTrack:SetWidth(math.max(1, f.sliderWidth - mx))
+			s.extFill:ClearAllPoints()
+			s.extFill:SetPoint("LEFT", s.track, "LEFT", mx, 0)
+			s.extFill:SetWidth(math.max(1, pos - mx))
+			s.extFill:SetShown(pos > mx + 0.5)
+			s.marker:Show(); s.extTrack:Show()
+		else
+			s.fill:SetWidth(math.max(1, pos))
+			s.marker:Hide(); s.extTrack:Hide(); s.extFill:Hide()
+		end
+	end
+
+	-- normalHi: end of the researched normal range when the slider spans an extended range.
+	function f:SetExtended(normalHi, note)
+		self.normalHi, self.extendedNote = normalHi, note
+		updateFill()
 	end
 
 	-- Responsive width. Never resizes while the player is dragging.

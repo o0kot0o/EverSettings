@@ -193,7 +193,9 @@ function UI.UpdateSettingRow(r, item, list)
 	local available, unavailableReason = Providers:IsAvailable(def)
 	local restriction = Providers:GetRestriction(def)
 	local default = Providers:GetDefault(def)
-	local current = available and Providers:Get(def) or nil
+	-- Explicit branch: `available and Get() or nil` would turn a false value into nil.
+	local current
+	if available then current = Providers:Get(def) end
 	local modified = current ~= nil and default ~= nil and not Values.Equal(def, current, default)
 	local editable = available and not restriction
 	local restricted = available and restriction and def.control ~= "readonly"
@@ -220,6 +222,18 @@ function UI.UpdateSettingRow(r, item, list)
 	-- Badges ---------------------------------------------------------------------------
 	local badges = {}
 	if isPending then badges[#badges + 1] = { "PENDING", "warning" } end
+	-- Values outside the researched range (set by another addon or the console) are flagged.
+	if type(effective) == "number" and (def.control == "slider") then
+		local lo, hi = Providers:GetRange(def)
+		if lo and (effective < lo - 1e-9 or effective > hi + 1e-9) then
+			local ext = def.extendedRange
+			if ext and effective >= ext.min - 1e-9 and effective <= ext.max + 1e-9 then
+				badges[#badges + 1] = { "EXTENDED", "warning" }
+			else
+				badges[#badges + 1] = { "OUT OF RANGE", "error" }
+			end
+		end
+	end
 	local status = def.statusSummary
 	if status ~= "source" and status ~= "verified" then
 		badges[#badges + 1] = { Theme.statusLabels[status] or status:upper(), status }
@@ -281,9 +295,18 @@ function UI.UpdateSettingRow(r, item, list)
 	elseif active == "slider" then
 		local c = EnsureControl(r, "slider")
 		local lo, hi, step = Providers:GetRange(def)
+		local ext = def.extendedRange
+		local sliderLo, sliderHi = lo, hi
+		if ext then
+			sliderLo, sliderHi = math.min(lo, ext.min), math.max(hi, ext.max)
+			c:SetExtended(hi, ("Blizzard's slider stops at %s. Values up to %s are an extended range: %s")
+				:format(Values.Format(def, hi), Values.Format(def, sliderHi), ext.source))
+		else
+			c:SetExtended(nil, nil)
+		end
 		c:SetSliderWidth(sliderWidth)
 		c:SetUnit(def.suffix and ns.Util.Trim(def.suffix) or "")
-		c:Setup(def, lo, hi, step, commit, function(message)
+		c:Setup(def, sliderLo, sliderHi, step, commit, function(message)
 			page.errors[def.id] = message and UI.FormatError(message) or nil
 			r.desc:SetText(message and page.errors[def.id] or def.description)
 			UI.SetTextColor(r.desc, message and "error" or "textMuted")

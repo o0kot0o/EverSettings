@@ -91,6 +91,78 @@ describe("main window", function()
 	end)
 end)
 
+describe("0.2 in-game feedback", function()
+	it("a setting whose value is false shows Off in Details and counts as modified", function()
+		MOCK.cvars.vsync = "0" -- default is 1 (On)
+		ns.Sync:Prime()
+		open()
+		W:Navigate("category:graphics")
+		local row = findRow("graphics.vsync")
+		truthy(row.modifiedDot:IsShown(), "modified dot for Off when the default is On")
+		W:InspectSetting(def("graphics.vsync"))
+		local found = false
+		for _, t in ipairs(W.frame.inspector.texts) do
+			if t:IsShown() and t:GetText():find("Current") and t:GetText():find("Off") then found = true end
+		end
+		truthy(found, "Details shows Current Off, not a dash")
+	end)
+
+	it("preference descriptions are top-aligned so they cannot spill into the next row", function()
+		open()
+		W:Navigate("preferences")
+		local p = W.pages.preferences
+		for _, row in ipairs({ p.detailsRow, p.technicalRow, p.hideEmptyRow }) do
+			eq(row.desc:GetJustifyV(), "TOP")
+		end
+	end)
+
+	it("max camera distance offers the observed extended range up to 2.6 and marks it", function()
+		open()
+		W:Navigate("category:camera")
+		local row = findRow("camera.maxZoom")
+		local c = row.controls.slider
+		local lo, hi = c.slider:GetMinMaxValues()
+		eq(lo, 1); eq(hi, 2.6)
+		eq(c.normalHi, 2, "marker at Blizzard's 2.0")
+		truthy(c.slider.marker:IsShown())
+		truthy(c.extendedNote:find("2.6"))
+		local edit = c.edit
+		edit:SetFocus(); edit:SetText("2.6"); MOCK.Script(edit, "OnEnterPressed")
+		near(ns.Changes.pending["camera.maxZoom"], 2.6)
+		edit:SetFocus(); edit:SetText("2.7"); MOCK.Script(edit, "OnEnterPressed")
+		truthy(edit.hasError, "beyond the extended range is rejected")
+		MOCK.Script(edit, "OnEscapePressed")
+		ns.Changes:DiscardAll()
+	end)
+
+	it("a value set by another addon in the extended range is shown with an EXTENDED badge and can be kept", function()
+		MOCK.cvars.cameradistancemaxzoomfactor = "2.6"
+		ns.Sync:Prime()
+		open()
+		W:Navigate("category:camera")
+		MOCK.RunTimers()
+		local row = findRow("camera.maxZoom")
+		local labels = {}
+		for _, b in ipairs(row.badges) do if b:IsShown() then labels[#labels + 1] = b.text:GetText() end end
+		contains(labels, "EXTENDED")
+		eq(row.controls.slider.edit:GetText(), "2.6")
+		truthy(ns.Values.Validate(def("camera.maxZoom"), 2.6), "2.6 can be staged again")
+	end)
+
+	it("values outside every researched range are flagged OUT OF RANGE", function()
+		MOCK.cvars.gamma = "5"
+		ns.Sync:Prime()
+		open()
+		W:Navigate("category:graphics")
+		MOCK.RunTimers()
+		local row = findRow("graphics.gamma")
+		local labels = {}
+		for _, b in ipairs(row.badges) do if b:IsShown() then labels[#labels + 1] = b.text:GetText() end end
+		contains(labels, "OUT OF RANGE")
+		truthy(row.reset:IsShown(), "reset offered")
+	end)
+end)
+
 describe("layout preferences", function()
 	it("Details panel is hidden by default on a fresh install", function()
 		eq(ns.DB_DEFAULTS.window.inspector, false)

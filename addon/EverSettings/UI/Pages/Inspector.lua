@@ -131,7 +131,9 @@ function UI.CreateInspector(parent, window)
 		Text(def.description, 13, "textMuted", 10)
 
 		local available, reason = Providers:IsAvailable(def)
-		local current = available and Providers:Get(def) or nil
+		-- Explicit branch: `available and Get() or nil` would turn a false value into nil.
+	local current
+	if available then current = Providers:Get(def) end
 		local pending, hasPending = Changes:GetPending(def.id)
 		local default = Providers:GetDefault(def)
 		local original = ns.Backup:GetOriginal(def)

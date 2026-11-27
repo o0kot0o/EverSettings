@@ -47,7 +47,7 @@ Theme.statusLabels = {
 }
 
 Theme.metrics = {
-	headerHeight = 52, footerHeight = 50, sidebarWidth = 216,
+	headerHeight = 52, footerHeight = 50, sidebarWidth = 248,
 	inspectorWidth = 320, inspectorMin = 260, inspectorMax = 520,
 	rowHeight = 60, sectionHeight = 34, navItemHeight = 30, padding = 18,
 	minWidth = 860, minHeight = 520,

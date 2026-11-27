@@ -1,6 +1,7 @@
 -- Profiles, backups and original values. Every restore or profile application stages
 -- changes for review; nothing is written until the player presses Apply.
 local _, ns = ...
+local M = ns.Theme.metrics
 
 local Theme, UI, L, Util = ns.Theme, ns.UI, ns.L, ns.Util
 local Profiles, Backup, Values, Providers, Registry = ns.Profiles, ns.Backup, ns.Values, ns.Providers, ns.Registry
@@ -76,7 +77,8 @@ function UI.CreateProfilesPage(parent, window)
 	page.title:SetPoint("TOPLEFT", Theme.metrics.padding, -16)
 	page.title:SetText(L.PROFILES)
 	page.desc = UI.Text(page, "pageDesc", "textMuted")
-	page.desc:SetPoint("TOPLEFT", page.title, "BOTTOMLEFT", 0, -6)
+	page.desc:SetPoint("TOPLEFT", M.padding, -44)
+	page.desc:SetPoint("TOPRIGHT", -M.padding, -44)
 	page.desc:SetText("Profiles and backups contain values for researched settings only. Applying one stages its differences for review.")
 
 	page.newButton = UI.CreateButton(page, "Save current as...", "primary", 140, 26)

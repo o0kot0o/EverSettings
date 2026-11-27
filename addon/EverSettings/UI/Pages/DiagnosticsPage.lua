@@ -1,6 +1,7 @@
 -- Diagnostics page: copyable report of API capabilities, coverage, discovery, validation
 -- and recent history.
 local _, ns = ...
+local M = ns.Theme.metrics
 
 local Theme, UI, L, Util = ns.Theme, ns.UI, ns.L, ns.Util
 
@@ -12,7 +13,8 @@ function UI.CreateDiagnosticsPage(parent, window)
 	page.title:SetPoint("TOPLEFT", Theme.metrics.padding, -16)
 	page.title:SetText(L.DIAGNOSTICS)
 	page.desc = UI.Text(page, "pageDesc", "textMuted")
-	page.desc:SetPoint("TOPLEFT", page.title, "BOTTOMLEFT", 0, -6)
+	page.desc:SetPoint("TOPLEFT", M.padding, -44)
+	page.desc:SetPoint("TOPRIGHT", -M.padding, -44)
 	page.desc:SetText("Copy this report into a GitHub issue when reporting problems. Everything here is read-only.")
 
 	page.refresh = UI.CreateButton(page, "Refresh", "secondary", 90, 26)

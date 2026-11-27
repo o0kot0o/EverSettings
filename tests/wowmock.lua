@@ -187,6 +187,8 @@ function Impl.SetFormattedText(self, fmt, ...) Impl.SetText(self, fmt:format(...
 function Impl.GetStringWidth(self) return #(self.__text or "") * 6 end
 function Impl.GetStringHeight(self) return 14 end
 function Impl.SetFontObject(self, f) self.__font = f end
+function Impl.SetJustifyV(self, v) self.__justifyV = v end
+function Impl.GetJustifyV(self) return self.__justifyV end
 function Impl.GetFontObject(self) return self.__font end
 function Impl.SetFont() return true end
 

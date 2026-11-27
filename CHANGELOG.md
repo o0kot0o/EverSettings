@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.1-alpha (fixes from the 0.2 in-game screenshots)
+
+- Fixed: Details showed "Current —" and rows hid the modified dot for settings whose value is Off/false (a Lua `and/or` trap).
+- Fixed: Preferences descriptions overlapped the next row (not top-aligned); page descriptions could run under the Details panel.
+- Wider sidebar (labels no longer truncated); Manage button sized to its label.
+- Max Camera Distance: an explicitly marked extended range up to 2.6, as observed in game (Blizzard's slider stops at 2.0). The slider shows a marker at 2.0 and amber beyond it, with a tooltip and an EXTENDED badge.
+- Values set outside every researched range by another addon or the console get an OUT OF RANGE badge.
+- 5 new regression tests (113 total).
+
+
 ## 0.2.0-alpha (UI refinement, issue #4)
 
 - Typography: bundled Inter font with a type scale, higher-contrast secondary text, and an independent interface scale (70–160%).

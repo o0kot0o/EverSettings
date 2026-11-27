@@ -28,8 +28,12 @@ R:DefineGroup({ category = "camera" }, {
 		keywords = { "zoom", "distance", "max zoom", "cameraDistanceMaxZoomFactor" },
 		provider = "cvar", cvar = "cameraDistanceMaxZoomFactor", control = "slider", valueType = "number",
 		min = 1.0, max = 2.0, step = 0.1, suffix = "×",
-		rangeSource = "Camelot/ControlsOverrides.lua CreateSliderOptions(1.0, 2.0, .1). Values beyond 2.0 are not offered: the Forever console limit is unverified (Retail clamps at 2.6, Classic Era at 4.0 per community reports).",
-		sources = { CTRL_CAMELOT .. " (Max Camera Distance)", FPP .. " ('How far past 2.0 the console takes it ... Unverified')", STR .. " OPTION_TOOLTIP_MAX_FOLLOW_DIST" },
+		rangeSource = "Camelot/ControlsOverrides.lua CreateSliderOptions(1.0, 2.0, .1) is the normal range.",
+		extendedRange = {
+			min = 1.0, max = 2.6,
+			source = "observed in game on Forever 1.60.1.71139 (2026-11-27): the client stored and reported 2.6, set by another addon. 2.6 is also Retail's engine limit. Higher values are untested; whether 2.6 visibly zooms farther than 2.0 is not yet confirmed.",
+		},
+		sources = { CTRL_CAMELOT .. " (Max Camera Distance)", FPP .. " ('How far past 2.0 the console takes it ... Unverified')", STR .. " OPTION_TOOLTIP_MAX_FOLLOW_DIST", "In game, owner report 2026-11-27: value 2.6 accepted and stored by the client (see issue #3)" },
 		verification = standard(),
 	},
 	{

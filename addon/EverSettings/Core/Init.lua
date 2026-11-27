@@ -2,7 +2,7 @@
 local addonName, ns = ...
 
 ns.name = addonName
-ns.version = "0.2.0-alpha"
+ns.version = "0.2.1-alpha"
 ns.TARGET_INTERFACE = 16001
 
 -- Saved variable layout version. Bump and add a migration in Boot.lua when the layout changes.

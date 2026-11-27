@@ -2,7 +2,7 @@
 ## Title: EverSettings
 ## Notes: A professional, research-driven settings manager for WoW: Forever.
 ## Author: o0kot0o
-## Version: 0.2.0-alpha
+## Version: 0.2.1-alpha
 ## SavedVariables: EverSettingsDB
 ## IconTexture: Interface\Icons\INV_Misc_Gear_01
 ## Category: Interface Enhancements

@@ -41,10 +41,10 @@ local function CreateNavItem(list)
 	b.icon:SetPoint("LEFT", 20, 0)
 	b.label = UI.Text(b, "nav", "text")
 	b.label:SetPoint("LEFT", b.icon, "RIGHT", 10, 0)
-	b.label:SetPoint("RIGHT", -44, 0)
+	b.label:SetPoint("RIGHT", -46, 0)
 	b.count = UI.Text(b, "meta", "textDim", "RIGHT")
-	b.count:SetPoint("RIGHT", -18, 0)
-	b.count:SetWidth(30)
+	b.count:SetPoint("RIGHT", -16, 0)
+	b.count:SetWidth(32)
 	b:SetScript("OnClick", function(self) Window:Navigate(self.key) end)
 	b:SetScript("OnEnter", function(self) self.hovered = true; self:UpdateVisual() end)
 	b:SetScript("OnLeave", function(self) self.hovered = false; self:UpdateVisual() end)
@@ -259,7 +259,8 @@ function Window:CreateHeader(f)
 		Window:UpdateProfileDropdown()
 	end
 	f.profileDropdown = profileDropdown
-	local manage = UI.CreateButton(header, "Manage", "ghost", 86, 28, "profiles")
+	local manage = UI.CreateButton(header, "Manage", "ghost", 104, 28, "profiles")
+	manage:FitWidth(104)
 	manage:SetPoint("LEFT", profileDropdown, "RIGHT", 6, 0)
 	manage:SetScript("OnClick", function() Window:Navigate("profiles") end)
 	f.manageButton = manage
@@ -407,7 +408,7 @@ function Window:Layout()
 	end
 	-- Header: search shrinks first, then the Manage button hides on narrow windows.
 	f.search:SetWidth(Util.Clamp(width - 780, 180, 340))
-	f.manageButton:SetShown(width >= 980)
+	f.manageButton:SetShown(width >= 1010)
 end
 
 function Window:SavePosition()

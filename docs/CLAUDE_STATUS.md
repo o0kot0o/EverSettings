@@ -1,10 +1,10 @@
 # Claude status
 
-_Last updated: 2026-11-27, 0.2.0-alpha UI refinement (issue #4)._
+_Last updated: 2026-11-27, 0.2.1-alpha (fixes from the 0.2 in-game screenshots)._
 
 ## Current milestone
 
-**Milestone A: Foundation**, plus the **0.2 UI refinement** (issue #4). Implemented and offline tested. In game: loading, discovery, slider/edit-box behaviour, validation and external-change sync are confirmed on 0.1. **The 0.2 UI has not been seen in game yet.** Claude cannot run the game client; the in-game test plan is in [TEST_RESULTS.md](TEST_RESULTS.md).
+**Milestone A: Foundation**, plus the **0.2 UI refinement** (issue #4). Implemented and offline tested. In game: loading, discovery, slider/edit-box behaviour, validation and external-change sync are confirmed on 0.1. **0.2 seen in game** (screenshots in `docs/screenshots/after-0.2-*`): fonts, icons, the Details panel and slider drag work. 0.2.1 fixes the issues those screenshots showed and is not yet seen in game. Claude cannot run the game client; the in-game test plan is in [TEST_RESULTS.md](TEST_RESULTS.md).
 
 ## Implemented features
 
@@ -28,11 +28,12 @@ _Last updated: 2026-11-27, 0.2.0-alpha UI refinement (issue #4)._
 | Profiles: CRUD, compare, selective categories, import/export | yes | yes | no |
 | Technical CVar browser (read-only, virtualized) | yes | yes | no |
 | Diagnostics page and `/es diag` | yes | yes | no |
-| 0.2 UI refinement: Inter typography and type scale, interface scale, Details panel (hidden by default, button, double-click, resizable, remembered), sidebar icons, responsive control tiers, refined slider/toggle/dropdown/buttons, two-line descriptions with truncation tooltips, technical names, Preferences page | yes | yes (13 layout tests) | **no: needs 0.2 screenshots** |
+| 0.2 UI refinement: Inter typography and type scale, interface scale, Details panel (hidden by default, button, double-click, resizable, remembered), sidebar icons, responsive control tiers, refined slider/toggle/dropdown/buttons, two-line descriptions with truncation tooltips, technical names, Preferences page | yes | yes (18 layout and feedback tests) | partly: 0.2 seen in game; 0.2.1 fixes pending a recheck |
 | 86 curated definitions (Graphics 33, Camera 12, QoL 18, Performance 7, Questing 7, Interface 2, Accessibility 1, read-only info 6) | yes | yes (schema, defaults valid, catalog cross-check) | no |
 
 ## Recent changes
 
+- **0.2.1:** fixed "Current —" for false values, Preferences text overlap, sidebar/Manage truncation; Max Camera Distance extended range to 2.6 (observed in game); OUT OF RANGE badge.
 - **0.2 UI refinement (#4):** see [CHANGELOG.md](../CHANGELOG.md) and [UI_DESIGN.md](UI_DESIGN.md). Decisions D10–D14 are in [ARCHITECTURE.md](ARCHITECTURE.md#decision-log). The slider drag fix is preserved, and the layout code never hides, resizes or re-ranges a slider while it is dragged (regression-tested).
 - Slider drag bug fixed (confirmed in game), compact range errors, live discovery findings documented.
 - Initial implementation of Milestone A (all of the above).
@@ -41,7 +42,7 @@ _Last updated: 2026-11-27, 0.2.0-alpha UI refinement (issue #4)._
 ## Current limitations
 
 - No in-game verification yet; every `persist` evidence entry is `unknown`.
-- Screenshots: 0.1 "before" screenshots are committed; 0.2 screenshots are still needed.
+- Screenshots: 0.1 and 0.2 screenshots are committed; 0.2.1 screenshots are still wanted.
 - Display mode, resolution and full MSAA anti-aliasing are not implemented (they need careful composites).
 - Categories without researched settings (Combat, Targeting, Nameplates, Controls, Audio, Network) show an empty state that points to the CVar browser.
 - No live preview (by design until settings are verified as safely restorable).
@@ -62,7 +63,7 @@ First result (2026-11-27, owner): **the addon loads, and `/es diag` and runtime 
 
 ## Offline test results
 
-108 passed, 0 failed (`.\scripts\test.ps1`). Details: [TEST_RESULTS.md](TEST_RESULTS.md).
+113 passed, 0 failed (`.\scripts\test.ps1`). Details: [TEST_RESULTS.md](TEST_RESULTS.md).
 
 ## Open GitHub issues
 

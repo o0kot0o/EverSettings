@@ -25,6 +25,8 @@ local function CreatePrefRow(parent, y, name, description)
 	r.desc:SetPoint("TOPRIGHT", r, "TOPRIGHT", -(Theme.ControlWidth(0) + 60), -31)
 	r.desc:SetWordWrap(true)
 	r.desc:SetMaxLines(2)
+	r.desc:SetJustifyV("TOP") -- default MIDDLE would push one-line text into the next row
+	r.desc:SetSpacing(2)
 	r.desc:SetText(description)
 	r.control = CreateFrame("Frame", nil, r)
 	r.control:SetSize(Theme.ControlWidth(0), 28)
@@ -44,6 +46,7 @@ function UI.CreatePreferencesPage(parent, window)
 	page.title:SetText(L.PREFERENCES)
 	page.desc = UI.Text(page, "pageDesc", "textMuted")
 	page.desc:SetPoint("TOPLEFT", M.padding, -44)
+	page.desc:SetPoint("TOPRIGHT", -M.padding, -44)
 	page.desc:SetText("How the EverSettings window looks and behaves. These do not change any game setting and apply immediately.")
 
 	local y = -76
