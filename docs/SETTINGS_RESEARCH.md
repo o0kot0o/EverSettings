@@ -88,7 +88,7 @@ Blizzard commit flags: `GxRestart` (triple buffering, graphics API and similar) 
 
 ## Verification model
 
-Evidence is tracked separately per aspect: **exists**, **values** (accepted values), **write** (permission), **persist** (persistence) and **effect** (observed effect). Each aspect can be `verified` (observed in game on Forever), `source` (Blizzard's Forever code or client dump), `community`, `experimental`, `unknown` or `unsupported`. Current totals are in [COVERAGE.md](COVERAGE.md). No aspect is in-game verified yet.
+Evidence is tracked separately per aspect: **exists**, **values** (accepted values), **write** (permission), **persist** (persistence) and **effect** (observed effect). Each aspect can be `verified` (observed in game on Forever), `source` (Blizzard's Forever code or client dump), `community`, `experimental`, `unknown` or `unsupported`. Current totals are in [COVERAGE.md](COVERAGE.md). In-game verified so far: Max Camera Distance (exists, values up to 2.6, write through EverSettings, visible effect) and Gamma (exists, write through EverSettings). Persistence is untested everywhere.
 
 ## Runtime discovery on the live client (2026-11-27, build 1.60.1.71139)
 
@@ -108,7 +108,7 @@ First in-game run, read from EverSettings' SavedVariables. `ConsoleGetAllCommand
 1. Can addon code write **secure** CVars (`uiScale`, `autoStand`) outside combat on Forever, or does `RequiresNonSecureCVar` block tainted callers entirely? (Test: Apply in EverSettings out of combat, then read back.)
 2. Does `ConsoleGetAllCommands()` list every CVar on Forever? (FPP open question; `/es diag` reports catalog entries missing from the client list.)
 3. Does `CVAR_UPDATE` fire for console (`/console`) changes and for Blizzard's settings panel on Forever?
-4. Upper limit of `cameraDistanceMaxZoomFactor` on Forever. **Partly answered (2026-11-27, in game):** another addon set it to 2.6 and the client stored and reported 2.6, so Forever accepts at least 2.6 (Retail's engine limit). EverSettings now offers 1.0–2.0 as the normal range plus a marked extended range up to 2.6. Still open: whether 2.6 visibly zooms farther than 2.0, and whether anything above 2.6 is accepted (Classic Era allows 4.0).
+4. Upper limit of `cameraDistanceMaxZoomFactor` on Forever. **Partly answered (2026-11-27, in game):** another addon set it to 2.6 and the client stored and reported 2.6, so Forever accepts at least 2.6 (Retail's engine limit). EverSettings now offers 1.0–2.0 as the normal range plus a marked extended range up to 2.6. **Effect verified in game:** the camera visibly zooms out farther at 2.6 than at 2.0. Still open: whether anything above 2.6 is accepted (Classic Era allows 4.0).
 5. Ranges for frequently requested hidden variables: `cameraZoomSpeed`, `farclip`, `nameplateMaxDistance` (a character had 60 saved), `SpellQueueWindow`.
 6. Do `maxFPS`/`targetFPS` accept values above Blizzard's slider maximum of 200?
 7. Persistence of each scope after relog and restart (all `persist` evidence is currently unknown).

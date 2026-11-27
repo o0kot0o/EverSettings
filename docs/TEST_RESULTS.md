@@ -2,7 +2,7 @@
 
 Three levels are tracked separately: **code implemented**, **offline tested**, **in-game verified**.
 
-## Offline tests: 113 passed, 0 failed (2026-11-27)
+## Offline tests: 114 passed, 0 failed (2026-11-27)
 
 Command: `.\scripts\test.ps1 -v` (Python 3.12, lupa 2.x, Lua 5.1 runtime). Addon load time offline: about 11 ms.
 
@@ -120,7 +120,7 @@ The addon has been deployed to the development machine's Forever install (`_fore
 | 1 | Loads without Lua errors | Enable the addon, log in, check for errors (BugSack or `/console scriptErrors 1`) | loads, `/es diag` runs (2026-11-27); error check pending |
 | 2 | `/es` and `/eversettings` open and close the window | Type both | pending |
 | 3 | No settings changed on install | Before first login with the addon, note a few values (`/dump GetCVar("Gamma")` etc.). After login, `/es diag` shows 0 history entries and the values are unchanged | pending |
-| 4 | Current and default values are correct | Compare a few rows with Blizzard's Options window (Gamma, View Distance, Auto Loot, Max Camera Distance) | pending |
+| 4 | Current and default values are correct | Compare a few rows with Blizzard's Options window (Gamma, View Distance, Auto Loot, Max Camera Distance) | partly: Vertical Sync Off and camera distance 2.6 shown correctly (2026-11-27) |
 | 5 | Slider and edit box stay in sync | Drag the Gamma slider, type `1.23` + Enter, type `9` (red, rejected), press Escape | click works and Apply changes Gamma (2026-11-27); **pass**: drag, click, Escape and invalid-input flagging all confirmed in game (2026-11-27) |
 | 6 | Validate and apply | Stage 2–3 changes, Apply, confirm the footer report and that Blizzard's Options shows the new values | pending |
 | 7 | External changes detected | With EverSettings open, change Auto Loot in Blizzard's Options or run `/console autoLootDefault 1`; the row updates | **pass** (Blizzard Options, 2026-11-27) |
@@ -128,7 +128,7 @@ The addon has been deployed to the development machine's Forever install (`_fore
 | 9 | Secure in combat | Enter combat, try to change UI Scale or Auto Stand: disabled with a combat reason; leaving combat re-enables it | pending |
 | 10 | Unsupported APIs handled | `/es diag` lists capabilities; options unsupported by your GPU are disabled | pending |
 | 11 | Responsive with a large list | CVar Browser: scroll and filter 1,785 variables smoothly | pending |
-| 12 | Layout | Window resize, text not overlapping, badges positioned, inspector scrolls; 0.2: Details button, panel resize, interface scale, icons and fonts render | 0.2 in game: fonts, icons, Details panel OK; Preferences overlap and "Current —" found and fixed in 0.2.1, recheck pending |
+| 12 | Layout | Window resize, text not overlapping, badges positioned, inspector scrolls; 0.2: Details button, panel resize, interface scale, icons and fonts render | **pass** (0.2.1, 2026-11-27): fonts, icons, Details panel, Preferences layout, false values shown correctly |
 | 13 | Secure write outside combat | Apply UI Scale out of combat and read back (research question 1) | pending |
 
 Please attach screenshots of the main window, the inspector, the CVar browser and the profiles page to `docs/screenshots/`.

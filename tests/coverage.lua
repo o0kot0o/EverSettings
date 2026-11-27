@@ -26,7 +26,15 @@ for _, aspect in ipairs(ns.Schema.EvidenceAspects) do
 	add("| %s | %d | %d | %d | %d | %d | %d |", ns.Schema.EvidenceLabels[aspect], e.verified or 0, e.source or 0, e.community or 0, e.experimental or 0, e.unknown or 0, e.unsupported or 0)
 end
 add("")
-add("No setting is marked in-game verified yet: Milestone A has only been tested offline.")
+local verified = {}
+for _, d in ipairs(ns.Registry.ordered) do
+	if d.provider ~= "diagnostic" and d.verification.effect == "verified" then verified[#verified + 1] = d.name end
+end
+if #verified == 0 then
+	add("No setting has an in-game verified effect yet.")
+else
+	add("Settings with an in-game verified effect: %s.", table.concat(verified, ", "))
+end
 add("")
 add("## Definitions by category")
 add("")

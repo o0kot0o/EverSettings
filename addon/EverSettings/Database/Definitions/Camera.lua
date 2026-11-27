@@ -31,10 +31,11 @@ R:DefineGroup({ category = "camera" }, {
 		rangeSource = "Camelot/ControlsOverrides.lua CreateSliderOptions(1.0, 2.0, .1) is the normal range.",
 		extendedRange = {
 			min = 1.0, max = 2.6,
-			source = "observed in game on Forever 1.60.1.71139 (2026-11-27): the client stored and reported 2.6, set by another addon. 2.6 is also Retail's engine limit. Higher values are untested; whether 2.6 visibly zooms farther than 2.0 is not yet confirmed.",
+			source = "verified in game on Forever 1.60.1.71139 (2026-11-27): the client accepts 2.6 and the camera visibly zooms out farther at 2.6 than at 2.0. 2.6 is also Retail's engine limit. Values above 2.6 are untested.",
 		},
-		sources = { CTRL_CAMELOT .. " (Max Camera Distance)", FPP .. " ('How far past 2.0 the console takes it ... Unverified')", STR .. " OPTION_TOOLTIP_MAX_FOLLOW_DIST", "In game, owner report 2026-11-27: value 2.6 accepted and stored by the client (see issue #3)" },
-		verification = standard(),
+		sources = { CTRL_CAMELOT .. " (Max Camera Distance)", FPP .. " ('How far past 2.0 the console takes it ... Unverified')", STR .. " OPTION_TOOLTIP_MAX_FOLLOW_DIST", "In game, owner report 2026-11-27: 2.6 accepted and stored; zoom distance visibly differs between 2.0 and 2.6; changed through EverSettings (issues #1, #3)" },
+		-- First in-game verified setting. Persistence across relog/restart is still untested.
+		verification = { exists = "verified", values = "verified", write = "verified", persist = "unknown", effect = "verified" },
 	},
 	{
 		id = "camera.fov", subcategory = "fov", name = "Field of View",

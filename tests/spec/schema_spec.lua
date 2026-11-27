@@ -59,12 +59,27 @@ describe("definitions", function()
 		truthy(def("graphics.uiScale").restrictions.secure)
 	end)
 
-	it("never mark unverified settings as in-game verified", function()
+	it("only mark settings verified when an in-game source is cited", function()
 		for _, d in ipairs(Registry.ordered) do
 			if d.provider ~= "diagnostic" then
-				falsy(d.statusSummary == "verified", d.id .. " is not verified in game yet")
+				local cited = false
+				for _, src in ipairs(d.sources) do
+					if src:find("In game") then cited = true end
+				end
+				for aspect, state in pairs(d.verification) do
+					if state == "verified" then
+						truthy(cited, d.id .. " has '" .. aspect .. "' verified without an in-game source")
+					end
+				end
 			end
 		end
+	end)
+
+	it("records the in-game verified settings", function()
+		eq(def("camera.maxZoom").statusSummary, "verified")
+		eq(def("camera.maxZoom").verification.effect, "verified")
+		eq(def("graphics.gamma").verification.write, "verified")
+		eq(def("graphics.gamma").statusSummary, "source", "effect not yet observed, so not shown as VERIFIED")
 	end)
 
 	it("have unique ids and valid categories", function()

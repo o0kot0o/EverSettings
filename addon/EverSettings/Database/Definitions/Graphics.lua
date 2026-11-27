@@ -100,7 +100,8 @@ R:DefineGroup({ category = "graphics" }, {
 		provider = "cvar", cvar = "Gamma", control = "slider", valueType = "number",
 		min = 0.3, max = 2.8, step = 0.1,
 		rangeSource = "Graphics.lua CreateSliderOptions(.3, 2.8, .1); client help text 'Range: [0.3 - 2.8]'",
-		sources = { GFX .. " (Gamma)", DUMP }, verification = standard(),
+		sources = { GFX .. " (Gamma)", DUMP, "In game, owner report 2026-11-27: Apply through EverSettings changed Gamma (issue #1)" },
+		verification = { exists = "verified", values = "source", write = "verified", persist = "unknown", effect = "source" },
 	},
 	{
 		id = "graphics.brightness", subcategory = "display", name = "Brightness",
