@@ -90,6 +90,19 @@ Blizzard commit flags: `GxRestart` (triple buffering, graphics API and similar) 
 
 Evidence is tracked separately per aspect: **exists**, **values** (accepted values), **write** (permission), **persist** (persistence) and **effect** (observed effect). Each aspect can be `verified` (observed in game on Forever), `source` (Blizzard's Forever code or client dump), `community`, `experimental`, `unknown` or `unsupported`. Current totals are in [COVERAGE.md](COVERAGE.md). No aspect is in-game verified yet.
 
+## Runtime discovery on the live client (2026-11-27, build 1.60.1.71139)
+
+First in-game run, read from EverSettings' SavedVariables. `ConsoleGetAllCommands()` returned 1,800 variables and 77 commands.
+
+- **16 variables not in the bundled dump (70938):**
+  - 8 `CACHE-*` counters (`CACHE-WGOB-GameObjects{Hotfix,Record}Count`, `CACHE-WQST-QuestObjective…`, `CACHE-WQST-QuestV2…`). These are internal client-cache statistics, not settings.
+  - 8 nameplate variables: `nameplateCastBarDisplay`, `nameplateEnemyNpcAuraDisplay`, `nameplateEnemyPlayerAuraDisplay`, `nameplateFriendlyPlayerAuraDisplay`, `nameplateInfoDisplay`, `nameplateSimplifiedTypes`, `nameplateStackingTypes`, `nameplateThreatDisplay`. FPP documents `nameplateThreatDisplay` as a bitfield of `Enum.NamePlateThreatDisplay`, and `nameplateSimplifiedTypes` as account-scoped. Lesson: **the static dump does not contain every variable**, so runtime discovery is required, and the catalog should be merged with discovery results. Relevant for Milestone C (nameplates).
+- **1 catalog variable not listed by the client:** `showInGameNavigation`. Blizzard's own `Interface.lua` guards it with `if C_CVar.GetCVar("showInGameNavigation")`, so it can be absent.
+- **15 changed defaults, none from a patch:**
+  - 14 are graphics quality CVars (`graphicsQuality`, view distance, environment detail, ground clutter, shadows, compute effects, outline mode, and their `raid*` twins), each one level higher than in the dump. The client derives these defaults from hardware detection, so they differ per machine. EverSettings already takes "factory default" from the running client (`GetCVarDefault`), not from the catalog.
+  - `serverAlert`: a region-specific URL (us vs eu).
+- An external change was recorded right after install: `showQuestLevel` was turned on outside EverSettings (another addon, such as Questie, or the player). Sync detected and logged it without overwriting.
+
 ## Open research questions
 
 1. Can addon code write **secure** CVars (`uiScale`, `autoStand`) outside combat on Forever, or does `RequiresNonSecureCVar` block tainted callers entirely? (Test: Apply in EverSettings out of combat, then read back.)

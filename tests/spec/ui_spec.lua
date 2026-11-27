@@ -134,6 +134,31 @@ describe("numeric slider + edit box", function()
 		eq(row.controls.slider.edit:GetText(), "1.6")
 	end)
 
+	it("a held drag is not interrupted by refreshes and stages once on release", function()
+		open()
+		W:Navigate("category:graphics")
+		local row = findRow("graphics.gamma")
+		local control = row.controls.slider
+		local slider = control.slider
+		MOCK.Script(slider, "OnMouseDown", "LeftButton")
+		MOCK.Script(slider, "OnValueChanged", 1.3, true)
+		slider.__value = 1.3
+		eq(ns.Changes:Count(), 0, "nothing staged mid-drag")
+		eq(control.edit:GetText(), "1.3", "edit box follows the drag live")
+		-- A refresh mid-drag (poll, external change) must not reset the range or move the thumb.
+		local setMinMaxCalls = 0
+		local orig = slider.SetMinMaxValues
+		rawset(slider, "SetMinMaxValues", function(...) setMinMaxCalls = setMinMaxCalls + 1; return orig(...) end)
+		W.pages.settings:RefreshRows()
+		eq(setMinMaxCalls, 0, "range not re-applied during drag")
+		eq(slider:GetValue(), 1.3, "thumb stays under the cursor")
+		MOCK.Script(slider, "OnValueChanged", 1.8, true)
+		MOCK.Script(slider, "OnMouseUp", "LeftButton")
+		rawset(slider, "SetMinMaxValues", nil)
+		eq(ns.Changes:Count(), 1)
+		near(ns.Changes.pending["graphics.gamma"], 1.8)
+	end)
+
 	it("percent settings show and accept percentages", function()
 		open()
 		W:Navigate("category:graphics")

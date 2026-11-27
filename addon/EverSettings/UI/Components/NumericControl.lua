@@ -53,14 +53,24 @@ function UI.CreateNumericControl(parent)
 	function f:Setup(def, lo, hi, step, onCommit, onError)
 		self.def, self.lo, self.hi, self.step = def, lo, hi, step
 		self.onCommit, self.onError = onCommit, onError
-		self.updating = true
-		s:SetMinMaxValues(lo, hi)
-		s:SetValueStep(step or (hi - lo) / 100)
-		self.updating = false
+		-- Re-applying the range or step cancels an in-progress drag in the client, so only
+		-- touch the slider when something actually changed and the player is not dragging.
+		if s.dragging then return end
+		local curLo, curHi = s:GetMinMaxValues()
+		local newStep = step or (hi - lo) / 100
+		if curLo ~= lo or curHi ~= hi or self.appliedStep ~= newStep then
+			self.updating = true
+			s:SetMinMaxValues(lo, hi)
+			s:SetValueStep(newStep)
+			self.appliedStep = newStep
+			self.updating = false
+		end
 	end
 
 	-- Display a canonical value without firing callbacks.
 	function f:SetValue(value)
+		-- Refreshes during a drag must not move the thumb under the player's cursor.
+		if s.dragging then return end
 		self.value = value
 		self.updating = true
 		if type(value) == "number" then
@@ -98,7 +108,33 @@ function UI.CreateNumericControl(parent)
 		f.value = value
 		e:SetText(Values.FormatNumber(f.def, value))
 		e:SetError(false)
-		if f.onCommit then f.onCommit(value) end
+		if s.dragging then
+			-- Stage once on release; staging mid-drag refreshes the row and ends the drag.
+			f.dragValue = value
+		elseif f.onCommit then
+			f.onCommit(value)
+		end
+	end)
+
+	s:SetScript("OnMouseDown", function(self, button)
+		if button == "LeftButton" and self:IsEnabled() then
+			self.dragging = true
+			f.dragValue = nil
+		end
+	end)
+	s:SetScript("OnMouseUp", function(self)
+		if not self.dragging then return end
+		self.dragging = false
+		local value = f.dragValue
+		f.dragValue = nil
+		if value ~= nil and f.onCommit then f.onCommit(value) end
+	end)
+	s:SetScript("OnHide", function(self)
+		-- A row recycled mid-drag must not leave the control stuck in drag mode.
+		if self.dragging then
+			self.dragging = false
+			f.dragValue = nil
+		end
 	end)
 
 	e:SetScript("OnEnterPressed", function(self)
