@@ -1,0 +1,65 @@
+## Interface: 16001
+## Title: EverSettings
+## Notes: A professional, research-driven settings manager for WoW: Forever.
+## Author: o0kot0o
+## Version: 0.1.0-alpha
+## SavedVariables: EverSettingsDB
+## IconTexture: Interface\Icons\INV_Misc_Gear_01
+## Category: Interface Enhancements
+
+# Load order matters: core -> schema -> catalog -> providers -> definitions -> services -> UI -> boot.
+
+Locales\enUS.lua
+
+Core\Init.lua
+Core\Util.lua
+Core\Compat.lua
+Core\Callbacks.lua
+
+Database\Schema.lua
+Database\Categories.lua
+Database\Generated\CVarCatalog.lua
+Database\Registry.lua
+
+Providers\Providers.lua
+Providers\CVarProvider.lua
+Providers\CompositeProvider.lua
+Providers\APIProvider.lua
+Providers\DiagnosticProvider.lua
+
+Database\Definitions\Graphics.lua
+Database\Definitions\Performance.lua
+Database\Definitions\Camera.lua
+Database\Definitions\QualityOfLife.lua
+Database\Definitions\Diagnostics.lua
+
+Core\Values.lua
+Core\Discovery.lua
+Core\Backup.lua
+Core\History.lua
+Core\Changes.lua
+Core\Sync.lua
+
+Profiles\Serializer.lua
+Profiles\Profiles.lua
+
+Diagnostics\Diagnostics.lua
+
+UI\Themes\Theme.lua
+UI\Components\Base.lua
+UI\Components\Button.lua
+UI\Components\EditBox.lua
+UI\Components\NumericControl.lua
+UI\Components\Toggle.lua
+UI\Components\Dropdown.lua
+UI\Components\ScrollList.lua
+UI\Components\Dialog.lua
+UI\Pages\SettingRow.lua
+UI\Pages\SettingsPage.lua
+UI\Pages\CVarBrowserPage.lua
+UI\Pages\ProfilesPage.lua
+UI\Pages\DiagnosticsPage.lua
+UI\Pages\Inspector.lua
+UI\MainWindow.lua
+
+Core\Boot.lua

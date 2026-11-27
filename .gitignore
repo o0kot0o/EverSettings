@@ -1,0 +1,27 @@
+# Python / tooling
+.venv/
+__pycache__/
+*.pyc
+
+# Local, personal configuration (never commit)
+scripts/deploy.local.json
+*.local.json
+.env
+.claude/settings.local.json
+
+# Game files that must never be committed
+WTF/
+*.wtf
+SavedVariables/
+Cache/
+Logs/
+Errors/
+
+# Generated intermediate output (the addon's generated catalog IS committed)
+tools/database/out/
+
+# OS / editor
+Thumbs.db
+.DS_Store
+.vscode/
+*.swp
