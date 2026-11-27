@@ -55,7 +55,7 @@ function UI.CreateNumericControl(parent)
 		self.onCommit, self.onError = onCommit, onError
 		-- Re-applying the range or step cancels an in-progress drag in the client, so only
 		-- touch the slider when something actually changed and the player is not dragging.
-		if s.dragging then return end
+		if f:IsDragging() then return end
 		local curLo, curHi = s:GetMinMaxValues()
 		local newStep = step or (hi - lo) / 100
 		if curLo ~= lo or curHi ~= hi or self.appliedStep ~= newStep then
@@ -70,7 +70,7 @@ function UI.CreateNumericControl(parent)
 	-- Display a canonical value without firing callbacks.
 	function f:SetValue(value)
 		-- Refreshes during a drag must not move the thumb under the player's cursor.
-		if s.dragging then return end
+		if f:IsDragging() then return end
 		self.value = value
 		self.updating = true
 		if type(value) == "number" then
@@ -108,33 +108,48 @@ function UI.CreateNumericControl(parent)
 		f.value = value
 		e:SetText(Values.FormatNumber(f.def, value))
 		e:SetError(false)
-		if s.dragging then
-			-- Stage once on release; staging mid-drag refreshes the row and ends the drag.
-			f.dragValue = value
-		elseif f.onCommit then
-			f.onCommit(value)
+		-- Stage once when the drag ends: staging mid-drag refreshes the row, which would
+		-- interrupt the drag. A plain click (no drag in progress) stages immediately.
+		f.dragValue = value
+		if f:IsDragging() then
+			f:SetScript("OnUpdate", f.WatchDragEnd)
+		else
+			f:FinishDrag()
 		end
 	end)
+
+	-- Drag state: Slider:IsDraggingThumb() (in Forever's widget API) is authoritative;
+	-- OnMouseDown/OnMouseUp are a fallback for clicks on the track.
+	function f:IsDragging()
+		if s.dragging then return true end
+		return s.IsDraggingThumb and s:IsDraggingThumb() and true or false
+	end
+
+	function f:FinishDrag()
+		f:SetScript("OnUpdate", nil)
+		local value = f.dragValue
+		f.dragValue = nil
+		if value ~= nil and f.onCommit then f.onCommit(value) end
+	end
+
+	function f.WatchDragEnd()
+		if not f:IsDragging() then f:FinishDrag() end
+	end
 
 	s:SetScript("OnMouseDown", function(self, button)
 		if button == "LeftButton" and self:IsEnabled() then
 			self.dragging = true
-			f.dragValue = nil
 		end
 	end)
 	s:SetScript("OnMouseUp", function(self)
-		if not self.dragging then return end
 		self.dragging = false
-		local value = f.dragValue
-		f.dragValue = nil
-		if value ~= nil and f.onCommit then f.onCommit(value) end
+		if f.dragValue ~= nil then f:SetScript("OnUpdate", f.WatchDragEnd) end
 	end)
 	s:SetScript("OnHide", function(self)
 		-- A row recycled mid-drag must not leave the control stuck in drag mode.
-		if self.dragging then
-			self.dragging = false
-			f.dragValue = nil
-		end
+		self.dragging = false
+		f.dragValue = nil
+		f:SetScript("OnUpdate", nil)
 	end)
 
 	e:SetScript("OnEnterPressed", function(self)

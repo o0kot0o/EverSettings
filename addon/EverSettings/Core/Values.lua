@@ -84,7 +84,7 @@ function Values.Validate(def, value)
 			local minAllowed = ext and math.min(lo, ext.min) or lo
 			local maxAllowed = ext and math.max(hi, ext.max) or hi
 			if value < minAllowed - 1e-9 or value > maxAllowed + 1e-9 then
-				return false, ("must be between %s and %s"):format(Values.FormatNumber(def, minAllowed), Values.FormatNumber(def, maxAllowed))
+				return false, ("allowed %s to %s"):format(Values.FormatNumber(def, minAllowed), Values.FormatNumber(def, maxAllowed))
 			end
 		end
 		return true

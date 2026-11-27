@@ -91,8 +91,19 @@ function Impl.Show(self)
 	self.__shown = true
 	if not was and self.__scripts.OnShow then self.__scripts.OnShow(self) end
 end
+-- Hiding a slider, or any of its ancestors, ends a thumb drag in the client.
+local function cancelDrags(obj)
+	if obj.__draggingThumb then
+		obj.__draggingThumb = false
+		MOCK.cancelledDrags = (MOCK.cancelledDrags or 0) + 1
+	end
+	for _, child in ipairs(obj.__children or {}) do cancelDrags(child) end
+end
+function Impl.IsDraggingThumb(self) return self.__draggingThumb == true end
+
 function Impl.Hide(self)
 	local was = self.__shown
+	cancelDrags(self)
 	self.__shown = false
 	if was and self.__scripts.OnHide then self.__scripts.OnHide(self) end
 end
@@ -186,7 +197,11 @@ end
 function Impl.HasFocus(self) return MOCK.focus == self end
 
 -- Slider
-function Impl.SetMinMaxValues(self, lo, hi) self.__min, self.__max = lo, hi end
+function Impl.SetMinMaxValues(self, lo, hi)
+	-- Changing the range mid-drag also interrupts the drag (conservative model).
+	if self.__draggingThumb and (lo ~= self.__min or hi ~= self.__max) then cancelDrags(self) end
+	self.__min, self.__max = lo, hi
+end
 function Impl.GetMinMaxValues(self) return self.__min, self.__max end
 function Impl.SetValue(self, v)
 	v = math.max(self.__min, math.min(self.__max, v))

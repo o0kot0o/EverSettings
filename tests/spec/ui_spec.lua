@@ -134,29 +134,58 @@ describe("numeric slider + edit box", function()
 		eq(row.controls.slider.edit:GetText(), "1.6")
 	end)
 
-	it("a held drag is not interrupted by refreshes and stages once on release", function()
+	-- Reproduces the in-game report: grabbing the thumb (no OnMouseDown on the slider),
+	-- moving it while the list refreshes, then releasing.
+	it("a thumb drag survives refreshes and stages once when released", function()
 		open()
 		W:Navigate("category:graphics")
 		local row = findRow("graphics.gamma")
 		local control = row.controls.slider
 		local slider = control.slider
-		MOCK.Script(slider, "OnMouseDown", "LeftButton")
+		MOCK.cancelledDrags = 0
+		slider.__draggingThumb = true -- the client reports IsDraggingThumb() == true
 		MOCK.Script(slider, "OnValueChanged", 1.3, true)
 		slider.__value = 1.3
 		eq(ns.Changes:Count(), 0, "nothing staged mid-drag")
 		eq(control.edit:GetText(), "1.3", "edit box follows the drag live")
-		-- A refresh mid-drag (poll, external change) must not reset the range or move the thumb.
-		local setMinMaxCalls = 0
-		local orig = slider.SetMinMaxValues
-		rawset(slider, "SetMinMaxValues", function(...) setMinMaxCalls = setMinMaxCalls + 1; return orig(...) end)
+		-- Refreshes mid-drag (sync poll, external change, other rows staging).
 		W.pages.settings:RefreshRows()
-		eq(setMinMaxCalls, 0, "range not re-applied during drag")
+		ns.Changes:Stage(def("graphics.brightness"), 60)
+		MOCK.RunTimers()
+		W.pages.settings:RefreshRows()
+		eq(MOCK.cancelledDrags, 0, "no refresh hid the slider or changed its range")
+		truthy(slider:IsDraggingThumb(), "still dragging")
 		eq(slider:GetValue(), 1.3, "thumb stays under the cursor")
 		MOCK.Script(slider, "OnValueChanged", 1.8, true)
-		MOCK.Script(slider, "OnMouseUp", "LeftButton")
-		rawset(slider, "SetMinMaxValues", nil)
-		eq(ns.Changes:Count(), 1)
-		near(ns.Changes.pending["graphics.gamma"], 1.8)
+		MOCK.Script(control, "OnUpdate", 0)
+		falsy(ns.Changes.pending["graphics.gamma"], "still not staged while held")
+		slider.__draggingThumb = false -- mouse released
+		MOCK.Script(control, "OnUpdate", 0)
+		near(ns.Changes.pending["graphics.gamma"], 1.8, "staged on release")
+		eq(control:GetScript("OnUpdate"), nil, "drag watcher removed")
+	end)
+
+	it("a track click with mouse down/up stages after release", function()
+		open()
+		W:Navigate("category:graphics")
+		local row = findRow("graphics.gamma")
+		local control = row.controls.slider
+		MOCK.Script(control.slider, "OnMouseDown", "LeftButton")
+		MOCK.Script(control.slider, "OnValueChanged", 2.0, true)
+		eq(ns.Changes:Count(), 0)
+		MOCK.Script(control.slider, "OnMouseUp", "LeftButton")
+		MOCK.Script(control, "OnUpdate", 0)
+		near(ns.Changes.pending["graphics.gamma"], 2.0)
+	end)
+
+	it("range errors are short enough for the row", function()
+		open()
+		W:Navigate("category:graphics")
+		local row = findRow("graphics.gamma")
+		local edit = row.controls.slider.edit
+		edit:SetFocus(); edit:SetText("9"); MOCK.Script(edit, "OnEnterPressed")
+		eq(W.pages.settings.errors["graphics.gamma"], "Allowed 0.3 to 2.8")
+		MOCK.Script(edit, "OnEscapePressed")
 	end)
 
 	it("percent settings show and accept percentages", function()

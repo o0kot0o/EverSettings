@@ -2,7 +2,7 @@
 
 Three levels are tracked separately: **code implemented**, **offline tested**, **in-game verified**.
 
-## Offline tests: 93 passed, 0 failed (2026-11-27)
+## Offline tests: 95 passed, 0 failed (2026-11-27)
 
 Command: `.\scripts\test.ps1 -v` (Python 3.12, lupa 2.x, Lua 5.1 runtime). Addon load time offline: about 11 ms.
 
@@ -121,9 +121,9 @@ The addon has been deployed to the development machine's Forever install (`_fore
 | 2 | `/es` and `/eversettings` open and close the window | Type both | pending |
 | 3 | No settings changed on install | Before first login with the addon, note a few values (`/dump GetCVar("Gamma")` etc.). After login, `/es diag` shows 0 history entries and the values are unchanged | pending |
 | 4 | Current and default values are correct | Compare a few rows with Blizzard's Options window (Gamma, View Distance, Auto Loot, Max Camera Distance) | pending |
-| 5 | Slider and edit box stay in sync | Drag the Gamma slider, type `1.23` + Enter, type `9` (red, rejected), press Escape | click works and Apply changes Gamma (2026-11-27); dragging was broken, fixed, needs recheck |
+| 5 | Slider and edit box stay in sync | Drag the Gamma slider, type `1.23` + Enter, type `9` (red, rejected), press Escape | click works and Apply changes Gamma (2026-11-27); Escape restores the value; invalid input flagged (screenshot). Drag fix v2 (IsDraggingThumb, no hide on refresh) needs recheck |
 | 6 | Validate and apply | Stage 2–3 changes, Apply, confirm the footer report and that Blizzard's Options shows the new values | pending |
-| 7 | External changes detected | With EverSettings open, change Auto Loot in Blizzard's Options or run `/console autoLootDefault 1`; the row updates | pending |
+| 7 | External changes detected | With EverSettings open, change Auto Loot in Blizzard's Options or run `/console autoLootDefault 1`; the row updates | **pass** (Blizzard Options, 2026-11-27) |
 | 8 | Restore originals | Profiles > Safety > Original values > Stage originals > Apply | pending |
 | 9 | Secure in combat | Enter combat, try to change UI Scale or Auto Stand: disabled with a combat reason; leaving combat re-enables it | pending |
 | 10 | Unsupported APIs handled | `/es diag` lists capabilities; options unsupported by your GPU are disabled | pending |

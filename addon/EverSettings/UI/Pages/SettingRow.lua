@@ -7,6 +7,12 @@ local Values, Providers, Changes = ns.Values, ns.Providers, ns.Changes
 
 local APPLY_BADGES = { restart = "RESTART", reload = "RELOAD", gxrestart = "GX RESTART" }
 
+-- Row descriptions are one short line, so errors are kept compact ("Allowed 0.3 to 2.8").
+function UI.FormatError(message)
+	message = tostring(message or "invalid value")
+	return message:sub(1, 1):upper() .. message:sub(2)
+end
+
 local function EnsureControl(r, kind)
 	if r.controls[kind] then return r.controls[kind] end
 	local c
@@ -179,12 +185,24 @@ function UI.UpdateSettingRow(r, item, list)
 	end
 
 	-- Control ----------------------------------------------------------------------
-	for _, c in pairs(r.controls) do c:Hide() end
 	local kind = def.control
+	-- Decide which control this row shows, and hide only the others. Hiding and re-showing
+	-- the active control on every refresh would cancel a slider drag in progress.
+	local active
+	if not available or kind == "readonly" or kind == "number" or kind == "text" then
+		active = "value"
+	elseif kind == "slider" then
+		active = Providers:GetRange(def) and "slider" or "value"
+	else
+		active = kind
+	end
+	for name, c in pairs(r.controls) do
+		if name ~= active then c:Hide() end
+	end
 	local function commit(value)
 		local ok, verr = Values.Validate(def, value)
 		if not ok then
-			page.errors[def.id] = "Invalid value: " .. tostring(verr)
+			page.errors[def.id] = UI.FormatError(verr)
 			UI.UpdateSettingRow(r, item, list)
 			return
 		end
@@ -201,7 +219,7 @@ function UI.UpdateSettingRow(r, item, list)
 		local lo, hi, step = Providers:GetRange(def)
 		if lo then
 			c:Setup(def, lo, hi, step, commit, function(message)
-				page.errors[def.id] = message and ("Invalid value: " .. message) or nil
+				page.errors[def.id] = message and UI.FormatError(message) or nil
 				r.desc:SetText(message and page.errors[def.id] or def.description)
 				UI.SetTextColor(r.desc, message and "error" or "textMuted")
 			end)
