@@ -64,7 +64,13 @@ None yet. Pending the plan in [TEST_RESULTS.md](TEST_RESULTS.md#in-game-test-pla
 
 ## Open GitHub issues
 
-Created with this milestone (see `gh issue list`): in-game verification of Milestone A, secure CVar write research, hidden-variable ranges research, UI/visual design review, and a code review of the apply pipeline and safety model.
+| # | Title | Label |
+|---|---|---|
+| [#1](https://github.com/o0kot0o/EverSettings/issues/1) | Milestone A: in-game verification | in-game-test |
+| [#2](https://github.com/o0kot0o/EverSettings/issues/2) | Research: can addons write secure CVars on Forever? | research |
+| [#3](https://github.com/o0kot0o/EverSettings/issues/3) | Research: documented ranges for hidden camera, nameplate and combat variables | research |
+| [#4](https://github.com/o0kot0o/EverSettings/issues/4) | Design review: visual polish and category icons | design |
+| [#5](https://github.com/o0kot0o/EverSettings/issues/5) | Code review: apply pipeline, sync and import safety | review |
 
 ## Questions requiring further research
 
